@@ -141,6 +141,28 @@ Covers: `node_modules/`, `.chroma/`, `vector_store/`, `__pycache__/`,
 `*.pyc`, `.env`, `.venv/`, `venv/`, plus standard Hardhat artifacts
 (`contracts/artifacts/`, `contracts/cache/`) and `.DS_Store`.
 
+Also covers local Claude tooling state (machine-local caches/config, same
+category as `node_modules/` or `.chroma/`): `.claude/settings.local.json`,
+`.claude-mem/`, `*.claude-mem.db`.
+
+Explicitly NOT gitignored — real project deliverables that stay tracked:
+`/plans/`, `docs/superpowers/specs/`, `DECISIONS.md`,
+`.claude/settings.json` (shared project-level plugin/skill config, as
+opposed to `settings.local.json` which holds personal machine overrides —
+the same distinction Claude Code itself uses).
+
+## Security & Git Hygiene Conventions
+
+- Never commit `.env` itself, only `.env.example` — even though the local
+  `PRIVATE_KEY` value will be one of Hardhat's deterministic default
+  test-account keys (publicly known, no real funds, safe specifically
+  because `WEB3_PROVIDER_URI` never points anywhere but `127.0.0.1`), keep
+  the `.env` discipline absolute so it doesn't habituate a workflow where a
+  real key slips in later.
+- `PRIVATE_KEY` must only ever be one of the keys Hardhat prints to the
+  terminal on `npx hardhat node` startup. Never paste a real wallet's
+  private key into this repo's `.env`, even temporarily for testing.
+
 ## README.md
 
 Project title, one-paragraph description (from the academic overview), and
