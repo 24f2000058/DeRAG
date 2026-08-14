@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+
+# Node / Hardhat (contracts/ has its own nested .gitignore too)
+node_modules/
+
+# Vector store / ChromaDB
+.chroma/
+vector_store/
+
+# OS
+.DS_Store
+
+# Local Claude tooling state (machine-local, not project artifacts)
+.claude/settings.local.json
+.claude-mem/
+*.claude-mem.db
