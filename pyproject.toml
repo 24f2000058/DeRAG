@@ -1,0 +1,28 @@
+[project]
+name = "derag"
+version = "0.1.0"
+description = "DeRAG: Decentralized, Verifiable RAG with Trust-Weighted Ranking"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    "sentence-transformers>=3.0",
+    "torch>=2.0",
+    "langchain-community>=0.3",
+    "langchain-huggingface>=0.1",
+    "chromadb>=0.5",
+    "web3>=6,<7",
+    "requests>=2.31",
+    "streamlit>=1.35",
+    "numpy>=1.26",
+    "pandas>=2.2",
+    "ollama>=0.3",
+    "python-dotenv>=1.0",
+]
+
+[tool.uv]
+package = false
+dev-dependencies = [
+    "pytest>=8.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
