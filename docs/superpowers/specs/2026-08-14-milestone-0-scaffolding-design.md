@@ -77,13 +77,27 @@ to be importable. `app/main.py` renders a placeholder Streamlit page titled
 "DeRAG". `tests/test_smoke.py` asserts imports succeed and pytest collects
 at least one test.
 
+### Test file placement convention
+
+All Python tests live in the single top-level `/tests/` directory — no
+per-module `tests/` subfolders. Test files mirror the module they cover by
+name: `tests/test_pipeline_<thing>.py`, `tests/test_retrieval_<thing>.py`,
+`tests/test_blockchain_<thing>.py`, etc. This keeps pytest discovery to one
+root and matches the flat-package rationale above (one Python process spans
+all modules, so one test suite covers all modules). Every later milestone's
+TDD work follows this convention rather than re-deciding placement per
+milestone.
+
 ## Dependencies (`pyproject.toml`)
 
 Runtime: `sentence-transformers`, `torch`, `langchain-community`,
 `langchain-huggingface`, `chromadb`, `web3` (v6.x), `requests` (for IPFS
 HTTP API — no dedicated `ipfshttpclient` needed since Kubo's HTTP API is
 plain REST), `streamlit`, `numpy`, `pandas`, `ollama` (official Python
-client).
+client), `python-dotenv` (reads `.env` — no calls yet in M0, but
+`blockchain/` in Milestone 3 and `generation/` in Milestone 7 both need it
+for `WEB3_PROVIDER_URI`/`PRIVATE_KEY`/`OLLAMA_HOST`; adding the dependency
+now is infrastructure, not business logic).
 
 Dev: `pytest`.
 
