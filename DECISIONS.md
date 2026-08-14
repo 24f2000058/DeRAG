@@ -24,3 +24,8 @@
   placement ad hoc in every later milestone.
 - **Test frameworks:** `pytest` for Python, Hardhat's native Mocha/Chai
   (via `hardhat-toolbox`) for Solidity.
+- **ChromaDB 1.x, not 0.5.x.** `pyproject.toml` pins `chromadb>=0.5` with no
+  ceiling; `uv.lock` resolved it to `1.5.9`. This is intentional — the
+  installed and target API is ChromaDB 1.x, not the 0.5.x line the floor
+  might suggest. Recorded here so later milestones write retrieval code
+  against the 1.x client API without needing to re-discover this.

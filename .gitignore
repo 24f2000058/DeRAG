@@ -12,6 +12,10 @@ node_modules/
 .chroma/
 vector_store/
 
+# Local datasets (directory tracked via .gitkeep, contents are not)
+data/*
+!data/.gitkeep
+
 # OS
 .DS_Store
 
