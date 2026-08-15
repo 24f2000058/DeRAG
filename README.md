@@ -27,4 +27,14 @@ Milestone 0: project scaffolding. Milestone 1: preprocessing pipeline
 uv run python scripts/demo_ingest_prep.py
 ```
 
-No retrieval, blockchain, or generation logic implemented yet.
+Milestone 2: local-persistent ChromaDB vector store and "Standard RAG"
+retrieval (`retrieval/vector_store.py`, `retrieval/standard_rag.py`)
+implemented and tested — cosine-similarity search over the pipeline's
+embeddings, top-3 retrieval with no re-ranking. Run the demo with:
+
+```
+uv run python scripts/demo_standard_rag.py
+```
+
+No blockchain or generation logic implemented yet; `ipfs_cid` is a
+placeholder (`""`) until Milestones 4-5 wire in real IPFS values.
