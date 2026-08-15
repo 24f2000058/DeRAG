@@ -19,6 +19,9 @@ data/*
 # OS
 .DS_Store
 
+# Git worktrees (scratch, not project artifacts)
+.worktrees/
+
 # Local Claude tooling state (machine-local, not project artifacts)
 .claude/settings.local.json
 .claude-mem/
