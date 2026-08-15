@@ -26,7 +26,8 @@ def test_add_documents_stores_four_field_metadata(tmp_path):
     assert set(metadata.keys()) == {"source_file", "chunk_id", "ipfs_cid", "doc_hash"}
     assert metadata["source_file"] == "solar.txt"
     assert metadata["chunk_id"] == records[0]["chunk_id"]
-    # ipfs_cid uses empty string instead of None because Chroma doesn't support None in metadata
+    # Ruling: Chroma silently drops None-valued metadata keys entirely (not an
+    # error) — "" is the placeholder that survives the round-trip
     assert metadata["ipfs_cid"] == ""
     assert metadata["doc_hash"] == records[0]["hash"]
     assert stored["documents"][0] == records[0]["text"]
@@ -43,6 +44,21 @@ def test_add_documents_reingesting_identical_chunk_does_not_duplicate(tmp_path):
     count_after_second = collection.count()
 
     assert count_after_first == count_after_second == len(records)
+
+
+def test_add_documents_dedupes_identical_chunks_within_one_call(tmp_path):
+    collection = init_store(persist_directory=str(tmp_path))
+    # Repeated boilerplate text collapses (after normalize_text's whitespace
+    # collapsing) into multiple chunks sharing the same content hash. A naive
+    # upsert() call with duplicate IDs in one batch raises Chroma's
+    # DuplicateIDError; add_documents() must dedupe by hash before upserting.
+    records = ingest_prep(("A" * 400 + " ") * 6)
+    assert len(records) > 1
+    assert len({record["hash"] for record in records}) == 1
+
+    add_documents(records, source_file="boilerplate.txt", collection=collection)
+
+    assert collection.count() == 1
 
 
 def test_add_documents_empty_records_is_noop(tmp_path):

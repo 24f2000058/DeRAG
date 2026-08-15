@@ -122,7 +122,12 @@ later milestone next touches the relevant file.
   is convenient but coincidental** — it falls out of Chroma's upsert semantics,
   not a designed guarantee. Milestone 5's blockchain-registration idempotency
   needs its own explicit dedup check against on-chain state; don't assume this
-  Chroma behavior extends there.
+  Chroma behavior extends there. A consequence of doc_hash-as-ID: if
+  byte-identical chunk text appears under two different `source_file` values
+  across separate `add_documents()` calls, there is only one stored Chroma
+  entry and its `source_file` reflects whichever source was upserted last —
+  Milestone 3's on-chain `doc_hash` lookup should not assume one Chroma entry
+  maps to a unique `(source_file, chunk)` pair.
 - **Collection distance space: cosine**, set via `configuration={"hnsw": {"space":
   "cosine"}}` on `get_or_create_collection()`. Verified against the real
   `chromadb==1.5.9` install rather than assumed: `collection.configuration_json`

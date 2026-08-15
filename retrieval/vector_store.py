@@ -28,6 +28,14 @@ def add_documents(
         return
     if collection is None:
         collection = init_store()
+    # Dedupe by hash within this call: Chroma's upsert() requires unique IDs
+    # per call (unlike across calls, where re-upserting the same ID just
+    # overwrites in place). Two byte-identical chunks in one batch would
+    # otherwise raise DuplicateIDError. Keep the first occurrence of each hash.
+    seen: dict[str, dict] = {}
+    for record in records:
+        seen.setdefault(record["hash"], record)
+    records = list(seen.values())
     ids = [record["hash"] for record in records]
     embeddings = [record["embedding"] for record in records]
     documents = [record["text"] for record in records]
@@ -35,7 +43,9 @@ def add_documents(
         {
             "source_file": source_file,
             "chunk_id": record["chunk_id"],
-            "ipfs_cid": "",  # Empty string instead of None (Chroma doesn't support None in metadata)
+            # Ruling: Chroma silently drops None-valued metadata keys entirely
+            # (not an error) — "" is the placeholder that survives the round-trip
+            "ipfs_cid": "",
             "doc_hash": record["hash"],
         }
         for record in records
