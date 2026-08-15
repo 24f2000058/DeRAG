@@ -1,0 +1,15 @@
+DeRAG is a decentralized, verifiable retrieval-augmented generation system.
+It combines local embedding models, an immutable blockchain reputation
+ledger, and content-addressed storage to defend against data poisoning
+attacks on retrieval corpora.  Unlike conventional RAG pipelines, which
+trust semantic similarity alone, DeRAG cross-references every retrieved
+document against a crowd-sourced trust score before it ever reaches the
+language model's context window.  Low-reputation or unverified sources are
+down-weighted instead of blindly trusted, and every chunk is content-hashed
+so that later fetches from decentralized storage can be checked byte-for-byte
+against what was originally ingested.  This preprocessing stage — normalize,
+then chunk, then hash — is the foundation every later stage of the system
+depends on: retrieval ranks chunks by embedding similarity, the blockchain
+layer stores each chunk's hash and reputation on-chain, and the generation
+stage assembles a final answer only from chunks that clear the trust
+threshold.

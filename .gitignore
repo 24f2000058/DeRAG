@@ -15,6 +15,7 @@ vector_store/
 # Local datasets (directory tracked via .gitkeep, contents are not)
 data/*
 !data/.gitkeep
+!data/sample.txt
 
 # OS
 .DS_Store
