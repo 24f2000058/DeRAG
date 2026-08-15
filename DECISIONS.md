@@ -109,3 +109,38 @@ later milestone next touches the relevant file.
   a `source` key to the record) — flagged now as the intended extension point, not
   discovered under pressure later. The current four-key shape stays locked until that
   milestone explicitly extends it.
+
+## Milestone 2 — Vector Store & Retrieval (2026-08-15)
+
+- **Chroma document ID = `record["hash"]` (Milestone 1's sha256 of the normalized
+  chunk text), used directly** instead of inventing a new ID scheme. It's already
+  unique per content, so no extra bookkeeping is needed, and it sidesteps
+  Milestone 1's flagged caveat that `chunk_id` is only unique within a single
+  `ingest_prep()` call, not globally. Storage uses `collection.upsert()` (never
+  `add()`), so re-ingesting byte-identical content overwrites in place instead of
+  raising a duplicate-ID error or creating a duplicate entry. **This idempotency
+  is convenient but coincidental** — it falls out of Chroma's upsert semantics,
+  not a designed guarantee. Milestone 5's blockchain-registration idempotency
+  needs its own explicit dedup check against on-chain state; don't assume this
+  Chroma behavior extends there.
+- **Collection distance space: cosine**, set via `configuration={"hnsw": {"space":
+  "cosine"}}` on `get_or_create_collection()`. Verified against the real
+  `chromadb==1.5.9` install rather than assumed: `collection.configuration_json`
+  echoes the setting back, and a manual check with two orthogonal unit vectors
+  returned `distance=1.0` (cosine) rather than `2.0` (squared-L2), confirming the
+  space is actually applied, not silently defaulted. Embeddings are L2-normalized
+  (Milestone 1), so cosine and L2 rank identically here regardless — this
+  configuration matters for matching the spec's stated metric and for readers of
+  the code, not for the actual ranking output.
+- **`embedding_function=None` on every collection open**, since this project
+  always supplies its own vectors via `pipeline/embeddings.py`. Verified this
+  actually disables Chroma's default ONNX auto-embed (not just declines to set
+  one): calling `add()` with `documents=` but no `embeddings=` raises
+  `ValueError: You must provide an embedding function...`.
+- **Metadata schema is locked to exactly four fields**: `source_file` (str),
+  `chunk_id` (int, Milestone 1's per-call value, unchanged — NOT the Chroma ID),
+  `ipfs_cid` (`""` empty-string placeholder until Milestone 4/5 wire in real values), `doc_hash` (the
+  same string as the Chroma ID, `record["hash"]`). No author/publisher field —
+  that identity lives on-chain in Milestone 3's `Document` struct, looked up via
+  `doc_hash`. **Milestones 3-5 must populate `ipfs_cid` using this exact field
+  name** when real IPFS CIDs become available.
