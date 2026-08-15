@@ -4,6 +4,8 @@ import chromadb
 from chromadb.api.models.Collection import Collection
 from dotenv import load_dotenv
 
+from pipeline.embeddings import embed
+
 _COLLECTION_NAME = "derag_chunks"
 
 
@@ -39,3 +41,30 @@ def add_documents(
         for record in records
     ]
     collection.upsert(ids=ids, embeddings=embeddings, documents=documents, metadatas=metadatas)
+
+
+def query(query_text: str, k: int = 10, collection: Collection | None = None) -> list[dict]:
+    if collection is None:
+        collection = init_store()
+    query_embedding = embed([query_text])[0]
+    results = collection.query(
+        query_embeddings=[query_embedding],
+        n_results=k,
+        include=["documents", "metadatas", "distances"],
+    )
+    ids = results["ids"][0]
+    if not ids:
+        return []
+    hits = [
+        {
+            "chroma_id": chroma_id,
+            "text": text,
+            "similarity": 1.0 - distance,
+            "metadata": metadata,
+        }
+        for chroma_id, text, metadata, distance in zip(
+            ids, results["documents"][0], results["metadatas"][0], results["distances"][0]
+        )
+    ]
+    hits.sort(key=lambda hit: hit["similarity"], reverse=True)
+    return hits
