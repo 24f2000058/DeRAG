@@ -63,3 +63,33 @@ later milestone next touches the relevant file.
   untracked. Zero cost today (nothing generates those files yet); worth
   broadening to `.env*` with `!.env.example` whenever `.gitignore` is next
   touched.
+
+## Milestone 1 — Preprocessing Pipeline (2026-08-15)
+
+- **`normalize_text()` algorithm (hard contract for Milestone 4's IPFS
+  re-hash round trip):** `unicodedata.normalize("NFKC", raw)` → strip
+  Unicode categories `Cc`/`Cf` except `\t`/`\n`/`\r` (via a precomputed
+  `str.translate` removal table) → collapse whitespace runs to a single
+  space and strip ends (`re.sub(r"\s+", " ", text).strip()`) → `.lower()`.
+  NFKC runs first so it folds exotic whitespace (e.g. NBSP) to regular
+  space before the control-char strip and whitespace collapse run, and so
+  it folds compatibility/full-width variants before lowercasing. Verified
+  idempotent: `normalize_text(normalize_text(x)) == normalize_text(x)`.
+  Milestone 4 must hash fetched chunk text **verbatim** (never re-run it
+  through `normalize_text`) — `hash_chunk` only ever hashes the exact
+  string it's given, so the two hashes match by construction as long as
+  that invariant holds.
+- **`langchain-text-splitters` is now a direct dependency**
+  (`pyproject.toml`, `>=1.1`, resolved to 1.1.2 in `uv.lock`), not just a
+  transitive pull via `langchain-community` (which prints a
+  sunset/deprecation warning on import as of 0.4.2). Import path:
+  `from langchain_text_splitters import RecursiveCharacterTextSplitter`.
+- **`all-MiniLM-L6-v2` downloads on first use**, cached at
+  `~/.cache/huggingface` afterward. One-time network dependency for this
+  milestone only (and any future fresh environment); everything after the
+  first load is fully offline, consistent with the project's "no cloud
+  APIs" runtime stance.
+- **`ingest_prep()` record shape is locked**: `{"chunk_id": int, "text":
+  str, "hash": str, "embedding": list[float]}`, `chunk_id` is a 0-based
+  sequential index per call. Milestone 5's ingestion script consumes this
+  shape directly — do not rename these fields without updating Milestone 5.
