@@ -354,9 +354,7 @@ def test_model_max_seq_length_is_256():
 def test_model_pooling_mode_is_mean():
     model = _get_model()
     pooling_module = model[1]
-    assert pooling_module.pooling_mode_mean_tokens is True
-    assert pooling_module.pooling_mode_cls_token is False
-    assert pooling_module.pooling_mode_max_tokens is False
+    assert pooling_module.pooling_mode == "mean"
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
