@@ -5,6 +5,10 @@ SAMPLE = " ".join(f"word{i:04d}" for i in range(200))  # 1799 chars, no punctuat
 
 def test_chunk_count_and_sizes():
     chunks = chunk_text(SAMPLE)
+    # Verified against langchain-text-splitters==1.1.2; the exact chunk
+    # count depends on RecursiveCharacterTextSplitter's internal word-boundary
+    # search behavior, which is not a stable public contract — recheck this
+    # value if the library version changes.
     assert len(chunks) == 4
     for chunk in chunks:
         assert len(chunk) <= 500
@@ -12,6 +16,9 @@ def test_chunk_count_and_sizes():
 
 def test_chunk_overlap_shares_boundary_words():
     chunks = chunk_text(SAMPLE)
+    # Verified against langchain-text-splitters==1.1.2; these exact
+    # word-boundary strings depend on the splitter's internal chunking
+    # behavior — recheck if the library version changes.
     assert chunks[0].endswith(
         "word0050 word0051 word0052 word0053 word0054"
     )

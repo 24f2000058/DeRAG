@@ -93,3 +93,19 @@ later milestone next touches the relevant file.
   str, "hash": str, "embedding": list[float]}`, `chunk_id` is a 0-based
   sequential index per call. Milestone 5's ingestion script consumes this
   shape directly — do not rename these fields without updating Milestone 5.
+- **Chunking loses paragraph-boundary awareness by design.** `normalize_text()` collapses
+  all whitespace (including blank-line paragraph breaks) into single spaces before
+  chunking, so `RecursiveCharacterTextSplitter`'s `"\n\n"`/`"\n"` separator levels are
+  always dead in this pipeline — chunk boundaries fall through to word-level splitting,
+  which can cut mid-sentence. This is a known, deliberate tradeoff (required for the
+  Milestone 4 hash-stability contract, which needs one canonical normalized form) — not
+  a bug. If paragraph-aware chunking becomes a priority, it requires a normalization
+  contract change and a full Milestone 4 impact review, not a quick fix here.
+- **Embedding vectors are L2-normalized** (unit norm) by the model's built-in `Normalize`
+  module — cosine similarity and L2 distance will rank identically over these vectors,
+  relevant when a later milestone picks a ChromaDB distance function.
+- **`chunk_id` is per-call only, not globally unique.** A future milestone ingesting
+  multiple documents will need a way to attribute chunks to their source (e.g. adding
+  a `source` key to the record) — flagged now as the intended extension point, not
+  discovered under pressure later. The current four-key shape stays locked until that
+  milestone explicitly extends it.

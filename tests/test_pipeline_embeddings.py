@@ -1,4 +1,5 @@
-# tests/test_pipeline_embeddings.py
+import pytest
+
 from pipeline.embeddings import cosine_similarity, embed, _get_model
 
 
@@ -29,4 +30,12 @@ def test_model_max_seq_length_is_256():
 def test_model_pooling_mode_is_mean():
     model = _get_model()
     pooling_module = model[1]
+    # Verified against sentence-transformers==5.7.0; the pooling API changed
+    # from boolean flags (pooling_mode_mean_tokens, etc.) to this string form
+    # in a prior major version — recheck if upgrading across a major version.
     assert pooling_module.pooling_mode == "mean"
+
+
+def test_embed_rejects_bare_string():
+    with pytest.raises(TypeError):
+        embed("not a list")

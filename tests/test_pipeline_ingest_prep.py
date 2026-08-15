@@ -32,5 +32,9 @@ def test_ingest_prep_hash_matches_normalized_chunk_text():
 def test_ingest_prep_text_is_normalized():
     raw = "SHOUTING TEXT with​artifacts"
     records = ingest_prep(raw)
-    combined = " ".join(r["text"] for r in records)
-    assert combined == normalize_text(combined)
+    for record in records:
+        # Each chunk's text must equal its own normalized form (proving no
+        # un-normalized text leaks through the pipeline), not merely be
+        # idempotent under re-normalization.
+        assert record["text"] == normalize_text(record["text"])
+        assert record["text"].islower() or not any(c.isalpha() for c in record["text"])

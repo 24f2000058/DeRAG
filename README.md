@@ -19,5 +19,12 @@ Streamlit are all wired together.)_
 
 ## Status
 
-Milestone 0: project scaffolding only. No retrieval, blockchain, embedding,
-or generation logic implemented yet.
+Milestone 0: project scaffolding. Milestone 1: preprocessing pipeline
+(`pipeline/normalize.py`, `chunking.py`, `hashing.py`, `embeddings.py`,
+`ingest_prep.py`) implemented and tested. Run the demo with:
+
+```
+uv run python scripts/demo_ingest_prep.py
+```
+
+No retrieval, blockchain, or generation logic implemented yet.

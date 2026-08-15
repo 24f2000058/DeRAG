@@ -12,6 +12,8 @@ def _get_model() -> SentenceTransformer:
 
 
 def embed(texts: list[str]) -> list[list[float]]:
+    if isinstance(texts, str):
+        raise TypeError("embed() expects list[str], not a bare str")
     model = _get_model()
     vectors = model.encode(texts, convert_to_numpy=True)
     return vectors.tolist()
