@@ -36,5 +36,16 @@ embeddings, top-3 retrieval with no re-ranking. Run the demo with:
 uv run python scripts/demo_standard_rag.py
 ```
 
+Milestone 3: on-chain document registry (`contracts/contracts/DeRAG_Registry.sol`)
+and Python bridge (`blockchain/registry_client.py`) implemented and tested —
+owner/oracle-gated reputation ledger with publisher attribution and
+duplicate-hash protection. Start a local node and deploy with:
+
+```
+cd contracts && npx hardhat node
+# in a second terminal:
+cd contracts && npx hardhat run scripts/deploy.ts --network localhost
+```
+
 No blockchain or generation logic implemented yet; `ipfs_cid` is a
 placeholder (`""`) until Milestones 4-5 wire in real IPFS values.

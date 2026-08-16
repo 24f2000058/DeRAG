@@ -149,3 +149,54 @@ later milestone next touches the relevant file.
   that identity lives on-chain in Milestone 3's `Document` struct, looked up via
   `doc_hash`. **Milestones 3-5 must populate `ipfs_cid` using this exact field
   name** when real IPFS CIDs become available.
+
+## Milestone 3 — Blockchain Registry (2026-08-16)
+
+- **Ownership/oracle model**: `address public owner` set to `msg.sender`
+  in the constructor; constructor also auto-authorizes the deployer as
+  the first oracle (`authorizedOracles[msg.sender] = true`), matching the
+  spec's "Account #0 acts as Admin/Oracle" framing since Account #0 is
+  the deploying account in Milestone 5's standard Hardhat workflow.
+  `authorizeOracle(address, bool)` is owner-gated and lets additional
+  oracles be added later without a redeploy.
+- **`registerDocument` reverts on duplicate hash** rather than
+  silently no-opping — protects on-chain integrity even if called
+  out-of-band. Milestone 5's ingestion script is responsible for calling
+  `verify_integrity()` or `get_document()` before calling
+  `register_document()`, to avoid wasted gas on an expected revert. This
+  is a deliberately separate, explicit check from Milestone 2's Chroma
+  upsert-dedup behavior (which is coincidental idempotency, not a
+  designed guarantee).
+- **Publisher-per-call signing design**: `registry_client.py`'s
+  `register_document(doc_hash, ipfs_cid, signing_key=None)` accepts an
+  explicit signing key, defaulting to the `PRIVATE_KEY` env var (Account
+  #0) only when not given. Milestone 5's ingestion script passes
+  Accounts #1-#5's keys explicitly to simulate distinct publishers, since
+  the spec assigns those accounts as publishers (plural, different
+  accounts) — this was designed in now rather than retrofitted later.
+  `update_reputation(doc_hash, delta, signing_key=None)` follows the same
+  optional-override pattern but is expected to always use the
+  default (oracle account), since oracle is a single designated role in
+  this milestone's scope.
+- **Deployment artifact handoff**: `contracts/scripts/deploy.ts` writes
+  `contracts/deployments/localhost.json` (`{"address": ..., "abi": ...}`)
+  on every deploy. `blockchain/registry_client.py`'s `connect()` reads
+  this file directly (path computed relative to the module file), rather
+  than requiring a human to copy the address into `CONTRACT_ADDRESS`
+  after every fresh `npx hardhat node` restart. `contracts/deployments/`
+  is gitignored (build output, like `artifacts/`/`cache/`).
+- **bytes32 conversion, verified working**: `Web3.to_bytes(hexstr="0x" +
+  doc_hash)` where `doc_hash` is the 64-char SHA-256 hex string from
+  Milestone 1. Verified round-trip (`to_bytes(...).hex() ==
+  doc_hash`) directly against the real `web3==6.20.3` install before
+  writing `registry_client.py`.
+- **`documentLedger`'s auto-generated getter returns the full six struct
+  fields** (publisher, contentHash, ipfsCID, reputationScore, timestamp,
+  isRegistered) — confirmed by compiling a scratch contract with the
+  exact struct shape and inspecting the generated ABI, not assumed from
+  general Solidity docs. No separate getter function was added.
+  `registry_client.py`'s `get_document()` calls this auto-getter
+  directly; `verify_integrity()` remains a thin wrapper on the contract's
+  3-tuple `verifyIntegrity()` for the cheaper existence/reputation-only
+  check. Milestone 8's audit trail UI should call `get_document()` when
+  it needs `ipfs_cid`/`timestamp`, `verify_integrity()` otherwise.
