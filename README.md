@@ -47,5 +47,5 @@ cd contracts && npx hardhat node
 cd contracts && npx hardhat run scripts/deploy.ts --network localhost
 ```
 
-No blockchain or generation logic implemented yet; `ipfs_cid` is a
-placeholder (`""`) until Milestones 4-5 wire in real IPFS values.
+No generation logic implemented yet; `ipfs_cid` is still a placeholder
+(`""`) until Milestones 4-5 wire in real IPFS values.

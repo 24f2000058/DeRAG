@@ -27,6 +27,7 @@ dev-dependencies = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = ["-m", "not slow"]
 markers = [
     "slow: requires a live `npx hardhat node` running on WEB3_PROVIDER_URI",
 ]

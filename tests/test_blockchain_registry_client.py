@@ -17,6 +17,7 @@ def test_doc_hash_to_bytes32_accepts_0x_prefixed_string():
 
 
 import os
+import secrets
 
 import pytest
 
@@ -35,7 +36,7 @@ PUBLISHER_2_KEY = "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cda
 
 @pytest.mark.slow
 def test_register_update_and_read_back_end_to_end():
-    doc_hash = "1" * 64
+    doc_hash = secrets.token_hex(32)
     register_document(doc_hash, ipfs_cid="QmTestCID", signing_key=PUBLISHER_1_KEY)
 
     integrity = verify_integrity(doc_hash)
@@ -54,8 +55,8 @@ def test_register_update_and_read_back_end_to_end():
 
 @pytest.mark.slow
 def test_publisher_attribution_is_per_account_not_global():
-    hash_a = "2" * 64
-    hash_b = "3" * 64
+    hash_a = secrets.token_hex(32)
+    hash_b = secrets.token_hex(32)
 
     register_document(hash_a, ipfs_cid="cid-a", signing_key=PUBLISHER_1_KEY)
     register_document(hash_b, ipfs_cid="cid-b", signing_key=PUBLISHER_2_KEY)
