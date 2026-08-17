@@ -2,6 +2,8 @@ import os
 
 import requests
 
+from pipeline.hashing import hash_chunk
+
 
 class IPFSError(Exception):
     pass
@@ -51,3 +53,8 @@ def fetch_text(cid: str) -> str:
         )
 
     return response.content.decode("utf-8")
+
+
+def verify_hash(cid: str, expected_hash: str) -> bool:
+    fetched_text = fetch_text(cid)
+    return hash_chunk(fetched_text) == expected_hash

@@ -71,3 +71,49 @@ def test_fetch_text_raises_ipfs_error_when_daemon_unreachable(monkeypatch):
     monkeypatch.setenv("IPFS_API_URL", "/ip4/127.0.0.1/tcp/1")
     with pytest.raises(IPFSError):
         fetch_text("QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG")
+
+
+from pipeline.hashing import hash_chunk
+from storage.ipfs_client import verify_hash
+
+
+@pytest.mark.slow
+def test_verify_hash_true_for_correctly_hashed_content():
+    text = "Milestone 4 content for hash verification."
+    cid = upload_text(text)
+    expected_hash = hash_chunk(text)
+    assert verify_hash(cid, expected_hash) is True
+
+
+@pytest.mark.slow
+def test_verify_hash_false_for_tampered_expected_hash():
+    text = "Original content that was actually uploaded."
+    different_text = "Different content — simulates a tampered hash claim."
+    cid = upload_text(text)
+    wrong_hash = hash_chunk(different_text)
+    assert verify_hash(cid, wrong_hash) is False
+
+
+@pytest.mark.slow
+def test_verbatim_hash_survives_real_ipfs_round_trip():
+    """Proves Milestone 1's verbatim-hashing contract end-to-end.
+
+    This is not a generic round-trip check (that's already covered by
+    test_upload_then_fetch_round_trips_identical_text above). This test
+    proves the specific claim Milestone 1 depends on: for text of the
+    kind normalize_text() would already have normalized (mixed case,
+    irregular whitespace) BEFORE it ever reaches hash_chunk, the hash
+    computed before upload equals the hash computed on the exact same
+    content after a real fetch from IPFS — with zero re-normalization
+    in between. If fetch_text ever re-normalized or otherwise altered
+    the bytes it returns, this test (not the generic round-trip test)
+    is what would catch it.
+    """
+    already_normalized_text = "the quick brown fox jumps over the lazy dog"
+    hash_before_upload = hash_chunk(already_normalized_text)
+
+    cid = upload_text(already_normalized_text)
+    fetched_text = fetch_text(cid)
+    hash_after_fetch = hash_chunk(fetched_text)
+
+    assert hash_after_fetch == hash_before_upload
