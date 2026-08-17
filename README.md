@@ -60,3 +60,9 @@ daemon before running the slow suite or the demo:
 ```
 ipfs daemon
 ```
+
+Then run the tests or demo with:
+
+```
+IPFS_API_URL=/ip4/127.0.0.1/tcp/5001 uv run pytest -m slow tests/test_storage_ipfs_client.py
+```

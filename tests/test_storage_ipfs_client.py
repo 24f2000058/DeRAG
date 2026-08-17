@@ -9,7 +9,7 @@ running and reachable at the multiaddr in IPFS_API_URL (see
 
     ipfs daemon
 
-Then run: `uv run pytest -m slow tests/test_storage_ipfs_client.py`
+Then run: `IPFS_API_URL=/ip4/127.0.0.1/tcp/5001 uv run pytest -m slow tests/test_storage_ipfs_client.py`
 """
 
 import os

@@ -29,5 +29,5 @@ dev-dependencies = [
 testpaths = ["tests"]
 addopts = ["-m", "not slow"]
 markers = [
-    "slow: requires a live `npx hardhat node` running on WEB3_PROVIDER_URI",
+    "slow: requires a live external service (Hardhat node on WEB3_PROVIDER_URI, or an IPFS daemon on IPFS_API_URL)",
 ]
