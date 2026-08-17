@@ -109,7 +109,7 @@ def test_verbatim_hash_survives_real_ipfs_round_trip():
     the bytes it returns, this test (not the generic round-trip test)
     is what would catch it.
     """
-    already_normalized_text = "the quick brown fox jumps over the lazy dog"
+    already_normalized_text = "  The QUICK Brown   Fox\tJumps\n\nOver the LAZY dog  "
     hash_before_upload = hash_chunk(already_normalized_text)
 
     cid = upload_text(already_normalized_text)
