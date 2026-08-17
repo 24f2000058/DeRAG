@@ -200,3 +200,50 @@ later milestone next touches the relevant file.
   3-tuple `verifyIntegrity()` for the cheaper existence/reputation-only
   check. Milestone 8's audit trail UI should call `get_document()` when
   it needs `ipfs_cid`/`timestamp`, `verify_integrity()` otherwise.
+
+## Milestone 4 — IPFS Client (2026-08-17)
+
+- **Multiaddr-to-URL derivation, verified against a real daemon**:
+  `IPFS_API_URL` (`.env.example`: `/ip4/127.0.0.1/tcp/5001`) is parsed by
+  splitting on `/` into `["", "ip4", host, "tcp", port]` and building
+  `http://{host}:{port}`. Confirmed against a real local Kubo 0.29.0
+  daemon rather than assumed — `POST http://127.0.0.1:5001/api/v0/version`
+  against the derived URL returned `200` with the daemon's real version
+  JSON.
+- **Fetch via the public gateway (`GET :8080/ipfs/<cid>`), not the API's
+  `/api/v0/cat`**: both were confirmed working against the real daemon,
+  but the gateway is a plain GET with no request body, matches the
+  `.env.example` comment's implied convention ("gateway runs on port
+  8080, no env var needed" — same host as the API, fixed port), and is
+  the same read-only surface Milestone 8's audit trail UI would use.
+  Upload still goes through the API's `/api/v0/add` (`POST`, multipart)
+  since the gateway has no write path. Also confirmed live: Kubo's
+  `/api/v0/*` endpoints reject `GET` with `405` — every API call,
+  including reads, must be `POST`.
+- **CID version confirmed CIDv0 by default** (`Qm...`), verified against
+  the real daemon's `/api/v0/add` response with no `cid-version`
+  parameter — matches the spec's example CID format exactly, so
+  `storage/ipfs_client.py` never overrides `cid-version`.
+- **`/api/v0/add` response shape confirmed live**:
+  `{"Name": "...", "Hash": "Qm...", "Size": "29"}` — `Size` is a JSON
+  string, not a number (only `Hash` is read, so this didn't require
+  handling, but is noted for anyone touching `Size` later).
+- **`IPFSError` wraps both failure classes**: non-2xx HTTP responses
+  (confirmed live — a malformed or well-formed-but-missing CID returns
+  `500` with a JSON `{"Message": ...}` body) and connection-level
+  failures from a daemon that isn't running at all (confirmed live —
+  killing the daemon and retrying produces
+  `requests.exceptions.ConnectionError`, caught via its parent
+  `requests.exceptions.RequestException`). Both `upload_text` and
+  `fetch_text` catch both classes so no raw `requests` exception or
+  stack trace ever reaches a caller.
+- **Milestone 1's verbatim-hashing contract tested end-to-end through a
+  real IPFS round trip, not just asserted**: `hash_chunk` is called on
+  a mixed-case/irregular-whitespace string (the kind `normalize_text`
+  would already have normalized before `hash_chunk` sees it) *before*
+  `upload_text`, and again on the *fetched* text after a real
+  `upload_text` → `fetch_text` round trip against the live daemon; the
+  two hashes are asserted equal
+  (`test_verbatim_hash_survives_real_ipfs_round_trip`). This is
+  distinct from — and in addition to — the generic
+  upload/fetch-returns-identical-text round-trip test.

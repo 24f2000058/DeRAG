@@ -49,3 +49,14 @@ cd contracts && npx hardhat run scripts/deploy.ts --network localhost
 
 No generation logic implemented yet; `ipfs_cid` is still a placeholder
 (`""`) until Milestones 4-5 wire in real IPFS values.
+
+Milestone 4: IPFS storage client (`storage/ipfs_client.py`) implemented and
+tested against a real local Kubo daemon — text upload/fetch via the daemon's
+HTTP API and public gateway, plus `verify_hash()` (used by Milestone 8's
+audit trail UI) which proves fetched content still hashes identically to
+what was uploaded, using Milestone 1's exact `hash_chunk`. Start a local
+daemon before running the slow suite or the demo:
+
+```
+ipfs daemon
+```
