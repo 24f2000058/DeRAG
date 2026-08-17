@@ -31,3 +31,23 @@ def upload_text(text: str) -> str:
         )
 
     return response.json()["Hash"]
+
+
+def _gateway_base_url() -> str:
+    host = _api_base_url().split("://")[1].split(":")[0]
+    return f"http://{host}:8080"
+
+
+def fetch_text(cid: str) -> str:
+    url = f"{_gateway_base_url()}/ipfs/{cid}"
+    try:
+        response = requests.get(url, timeout=10)
+    except requests.exceptions.RequestException as exc:
+        raise IPFSError(f"could not reach IPFS gateway at {url}: {exc}") from exc
+
+    if response.status_code != 200:
+        raise IPFSError(
+            f"IPFS fetch failed with status {response.status_code} for CID {cid}: {response.text}"
+        )
+
+    return response.content.decode("utf-8")

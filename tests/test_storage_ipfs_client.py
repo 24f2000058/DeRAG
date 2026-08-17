@@ -16,7 +16,7 @@ import os
 
 import pytest
 
-from storage.ipfs_client import _api_base_url, IPFSError, upload_text
+from storage.ipfs_client import _api_base_url, IPFSError, upload_text, fetch_text
 
 
 def test_api_base_url_parses_multiaddr(monkeypatch):
@@ -43,3 +43,31 @@ def test_upload_text_raises_ipfs_error_when_daemon_unreachable(monkeypatch):
     monkeypatch.setenv("IPFS_API_URL", "/ip4/127.0.0.1/tcp/1")
     with pytest.raises(IPFSError):
         upload_text("this will never reach a daemon")
+
+
+@pytest.mark.slow
+def test_upload_then_fetch_round_trips_identical_text():
+    original = "The quick brown fox jumps over the lazy dog."
+    cid = upload_text(original)
+    fetched = fetch_text(cid)
+    assert fetched == original
+
+
+@pytest.mark.slow
+def test_fetch_text_raises_ipfs_error_for_malformed_cid():
+    with pytest.raises(IPFSError):
+        fetch_text("not-a-valid-cid")
+
+
+@pytest.mark.slow
+def test_fetch_text_raises_ipfs_error_for_well_formed_but_missing_cid():
+    # Valid CIDv0 shape, but content was never added to this node.
+    with pytest.raises(IPFSError):
+        fetch_text("QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG")
+
+
+@pytest.mark.slow
+def test_fetch_text_raises_ipfs_error_when_daemon_unreachable(monkeypatch):
+    monkeypatch.setenv("IPFS_API_URL", "/ip4/127.0.0.1/tcp/1")
+    with pytest.raises(IPFSError):
+        fetch_text("QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG")
