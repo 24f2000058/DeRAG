@@ -13,10 +13,13 @@ Run the slow test:  `uv run pytest -m slow tests/test_scripts_ingest.py -v`
 """
 
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
+import requests
+from web3.exceptions import ContractLogicError
 
-from scripts.ingest import _collect_input_files, _extract_text
+from scripts.ingest import PUBLISHER_1_KEY, _collect_input_files, _extract_text, _resolve_chunk_cid
 
 
 def test_extract_text_reads_txt_file_as_utf8(tmp_path):
@@ -58,3 +61,103 @@ def test_collect_input_files_directory_returns_sorted_txt_and_pdf_only(tmp_path)
     result = _collect_input_files(tmp_path)
 
     assert [p.name for p in result] == ["a.txt", "b.txt", "c.pdf"]
+
+
+_RECORD = {"chunk_id": 0, "text": "Solar panels convert sunlight.", "hash": "hash-a", "embedding": [0.1]}
+
+
+@patch("scripts.ingest.register_document")
+@patch("scripts.ingest.verify_hash")
+@patch("scripts.ingest.upload_text")
+@patch("scripts.ingest.get_document")
+def test_resolve_chunk_cid_skip_path_reuses_stored_cid(
+    mock_get_document, mock_upload_text, mock_verify_hash, mock_register_document
+):
+    mock_get_document.return_value = {
+        "publisher": "0xabc",
+        "content_hash": "0x" + "aa" * 32,
+        "ipfs_cid": "QmStoredCID",
+        "reputation_score": 0,
+        "timestamp": 12345,
+        "is_registered": True,
+    }
+
+    result = _resolve_chunk_cid(_RECORD, source_file="solar.txt", publisher_key=PUBLISHER_1_KEY)
+
+    assert result == "QmStoredCID"
+    mock_upload_text.assert_not_called()
+    mock_register_document.assert_not_called()
+
+
+@patch("scripts.ingest.register_document")
+@patch("scripts.ingest.verify_hash")
+@patch("scripts.ingest.upload_text")
+@patch("scripts.ingest.get_document")
+def test_resolve_chunk_cid_fresh_path_calls_in_order(
+    mock_get_document, mock_upload_text, mock_verify_hash, mock_register_document
+):
+    mock_get_document.return_value = {"is_registered": False}
+    mock_upload_text.return_value = "QmFreshCID"
+    mock_verify_hash.return_value = True
+    call_order = []
+    mock_upload_text.side_effect = lambda *a, **k: call_order.append("upload_text") or "QmFreshCID"
+    mock_verify_hash.side_effect = lambda *a, **k: call_order.append("verify_hash") or True
+    mock_register_document.side_effect = lambda *a, **k: call_order.append("register_document")
+
+    result = _resolve_chunk_cid(_RECORD, source_file="solar.txt", publisher_key=PUBLISHER_1_KEY)
+
+    assert result == "QmFreshCID"
+    assert call_order == ["upload_text", "verify_hash", "register_document"]
+    mock_register_document.assert_called_once_with(
+        _RECORD["hash"], "QmFreshCID", signing_key=PUBLISHER_1_KEY
+    )
+
+
+@patch("scripts.ingest.register_document")
+@patch("scripts.ingest.verify_hash")
+@patch("scripts.ingest.upload_text")
+@patch("scripts.ingest.get_document")
+def test_resolve_chunk_cid_verify_failure_excludes_chunk_without_registering(
+    mock_get_document, mock_upload_text, mock_verify_hash, mock_register_document
+):
+    mock_get_document.return_value = {"is_registered": False}
+    mock_upload_text.return_value = "QmBadCID"
+    mock_verify_hash.return_value = False
+
+    result = _resolve_chunk_cid(_RECORD, source_file="solar.txt", publisher_key=PUBLISHER_1_KEY)
+
+    assert result is None
+    mock_register_document.assert_not_called()
+
+
+@patch("scripts.ingest.register_document")
+@patch("scripts.ingest.verify_hash")
+@patch("scripts.ingest.upload_text")
+@patch("scripts.ingest.get_document")
+def test_resolve_chunk_cid_get_document_connection_error_is_caught(
+    mock_get_document, mock_upload_text, mock_verify_hash, mock_register_document
+):
+    mock_get_document.side_effect = requests.exceptions.ConnectionError("node unreachable")
+
+    result = _resolve_chunk_cid(_RECORD, source_file="solar.txt", publisher_key=PUBLISHER_1_KEY)
+
+    assert result is None
+    mock_upload_text.assert_not_called()
+    mock_register_document.assert_not_called()
+
+
+@patch("scripts.ingest.register_document")
+@patch("scripts.ingest.verify_hash")
+@patch("scripts.ingest.upload_text")
+@patch("scripts.ingest.get_document")
+def test_resolve_chunk_cid_register_document_contract_revert_is_caught(
+    mock_get_document, mock_upload_text, mock_verify_hash, mock_register_document
+):
+    mock_get_document.return_value = {"is_registered": False}
+    mock_upload_text.return_value = "QmFreshCID"
+    mock_verify_hash.return_value = True
+    mock_register_document.side_effect = ContractLogicError("execution reverted")
+
+    result = _resolve_chunk_cid(_RECORD, source_file="solar.txt", publisher_key=PUBLISHER_1_KEY)
+
+    assert result is None
