@@ -273,3 +273,64 @@ def test_run_ingest_file_level_extraction_failure_does_not_abort_run(
     _, kwargs = mock_add_documents.call_args
     assert kwargs["source_file"] == "solar.txt"
     assert kwargs["cid_by_hash"]
+
+
+import secrets
+
+from retrieval.vector_store import init_store
+from storage.ipfs_client import verify_hash as real_verify_hash
+from blockchain.registry_client import verify_integrity
+
+
+@pytest.mark.slow
+def test_run_ingest_end_to_end_against_live_services(tmp_path):
+    """Requires a running `npx hardhat node` (deployed via
+    contracts/scripts/deploy.ts) AND a running `ipfs daemon` simultaneously —
+    the first test in this repo needing two live services at once.
+    """
+    unique = secrets.token_hex(8)
+    sample_text = (
+        f"DeRAG Milestone 5 integration probe {unique}. "
+        "Fusion power research explores confining plasma with magnetic fields. "
+        "Battery storage technologies buffer intermittent renewable generation. "
+        "Grid interconnects allow regions to share surplus electricity capacity. "
+        "Demand response programs shift consumption away from peak load hours. "
+        "Offshore wind farms exploit stronger and steadier ocean winds. "
+        "Hydroelectric dams convert falling water into dispatchable power. "
+        "Geothermal plants tap subterranean heat for baseload generation. "
+        "Carbon capture systems trap emissions before they reach the atmosphere. "
+        "Smart meters give utilities real time visibility into consumption. "
+        "Microgrids let communities island themselves during outages. "
+        "Electric vehicle fleets can act as distributed storage reservoirs. "
+        "Hydrogen electrolysis converts surplus renewable power into fuel. "
+        "Nuclear small modular reactors promise compact reliable baseload output. "
+        "Tidal barrages harness predictable lunar driven ocean currents. "
+        "Biomass gasification turns organic waste into usable syngas. "
+        "Power purchase agreements let corporations fund new renewable capacity. "
+        "Transmission line upgrades reduce curtailment of remote wind resources. "
+        "Vehicle to grid technology returns stored energy back to the network. "
+        "Long duration storage chemistries target multi day discharge cycles."
+    )
+    # chunk_size in pipeline.chunking is 500 chars; the text above runs well
+    # past 1000 chars so it reliably splits into >= 3 overlapping chunks.
+    input_file = tmp_path / "energy_future.txt"
+    input_file.write_text(sample_text, encoding="utf-8")
+
+    chroma_dir = tmp_path / "chroma"
+    collection = init_store(persist_directory=str(chroma_dir))
+
+    exit_code = run_ingest(str(input_file), collection=collection)
+
+    assert exit_code == 0
+    stored = collection.get(include=["metadatas"])
+    assert len(stored["ids"]) >= 3
+
+    for doc_hash, metadata in zip(stored["ids"], stored["metadatas"]):
+        cid = metadata["ipfs_cid"]
+        assert cid != ""
+        assert real_verify_hash(cid, doc_hash) is True
+
+    first_hash = stored["ids"][0]
+    integrity = verify_integrity(first_hash)
+    assert integrity["exists"] is True
+    assert isinstance(integrity["reputation"], int)
