@@ -247,3 +247,75 @@ later milestone next touches the relevant file.
   (`test_verbatim_hash_survives_real_ipfs_round_trip`). This is
   distinct from — and in addition to — the generic
   upload/fetch-returns-identical-text round-trip test.
+
+## Milestone 5 — Ingestion Pipeline (2026-08-18)
+
+- **`add_documents()` extended with `cid_by_hash: dict[str, str] | None = None`**,
+  keyed by `doc_hash` (the same field already used as the Chroma ID). Overrides
+  the `""` placeholder only for hashes present in the dict; defaults to `None`
+  so every existing caller is unaffected. Confirmed by running
+  `uv run pytest tests/test_retrieval_vector_store.py -v` after the change —
+  all of Milestone 2's original tests passed with zero edits to their code,
+  alongside two new direct regression tests (no-override placeholder path,
+  selective-override path) added to the same file.
+- **Skip-path trusts the stored `ipfs_cid` without re-running `verify_hash`.**
+  `get_document()`'s six-field return already carries `ipfs_cid` — this is
+  the reason Milestone 3 built the full-struct getter rather than only
+  `verify_integrity()`'s three-tuple. Re-verifying every already-registered
+  chunk against the live IPFS daemon on every ingestion run is redundant
+  work with no new information; that kind of live audit belongs at
+  query/display time (a later milestone), not ingestion time.
+- **Safety-net ordering on the fresh path**: `upload_text()` →
+  `verify_hash()` → `register_document()`, in that order. A `False` from
+  `verify_hash()` aborts that chunk (excluded from the batch, logged to
+  stderr) before `register_document()` is ever called — on-chain
+  registration is effectively permanent in this MVP (no delete function),
+  so the check has to happen before the write.
+- **Failure isolation is per-chunk, not per-run.** The per-chunk try/except
+  wraps `get_document()` as well as the fresh-upload path — a flaky/dead
+  Hardhat node during the skip-check is exactly as plausible a transient
+  failure as a dead IPFS daemon and gets identical treatment: logged,
+  excluded from that file's batch, and the run continues to the next
+  chunk/file. Only at the very end, after every file has been attempted,
+  does `run_ingest()` return a nonzero exit code if anything failed — a
+  corpus of 50-100 chunks (Milestone 9's scale) shouldn't die entirely over
+  one transient hiccup, and a failed chunk is simply retried automatically
+  on the next run since it was never registered.
+- **Exception types confirmed live against a real Hardhat node, not
+  guessed**: an unreachable node raises `requests.exceptions.ConnectionError`
+  unwrapped (`registry_client.py` does no wrapping of its own — same
+  underlying exception class Milestone 4's `IPFSError` wraps for IPFS
+  connection failures); a duplicate-registration revert raises
+  `web3.exceptions.ContractLogicError` (confirmed via a live
+  `register_document()` call against an already-registered hash — the
+  existing test in `tests/test_blockchain_registry_client.py` had used a
+  bare `pytest.raises(Exception)` for this case, which this milestone's
+  design work replaced with the precise type). `scripts/ingest.py`'s catch
+  clause names exactly `(IPFSError, requests.exceptions.ConnectionError,
+  ContractLogicError)` — never a bare `except Exception` — so a real bug
+  still crashes the run instead of being silently logged as a data problem.
+- **`publisher_key` defaults to a single fixed account** (Hardhat Account
+  #1, matching `tests/test_blockchain_registry_client.py`'s
+  `PUBLISHER_1_KEY`), overridable per invocation. No automatic round-robin
+  or hash-based assignment across the spec's Accounts #1-#5 publisher
+  roles — that decision belongs to Milestone 9, which will call
+  `ingest.py` once per source file with deliberately curated
+  `publisher_key` values once it's actually simulating which document
+  comes from which source, not to this milestone's plumbing.
+- **PDF extraction: `pypdf`, not PyMuPDF.** PyMuPDF is faster and more
+  accurate but AGPL-3.0-licensed (commercial/closed-source use requires a
+  paid Artifex license); `pypdf` is BSD-licensed and sufficient for the
+  plain-prose PDFs in Milestone 9's demo corpus, where extraction speed at
+  a handful of files doesn't matter. Confirmed current via a web search
+  during design (2026-08-18) rather than assumed from stale knowledge —
+  PyMuPDF's AGPL status and pypdf's continued active maintenance under the
+  py-pdf org were both still current as of that search.
+- **File-level failures receive identical isolation as chunk-level ones.**
+  Both `_extract_text()` (which can fail with `UnicodeDecodeError` on bad
+  UTF-8 or `pypdf.errors.PyPdfError` on corrupt PDFs) and `ingest_prep()`
+  are wrapped in try/except `(UnicodeDecodeError, OSError,
+  pypdf.errors.PyPdfError)`, logged and skipped individually. Originally
+  only chunk-level failures in `_resolve_chunk_cid()` were caught, leaving
+  file-level issues uncaught; this was identified during code review before
+  merge and fixed to ensure both layers conform to the stated
+  failure-isolation requirement.
