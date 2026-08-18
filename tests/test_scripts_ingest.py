@@ -245,3 +245,31 @@ def test_run_ingest_second_run_makes_zero_new_register_document_calls(
 
     assert exit_code == 0
     assert mock_register_document.call_count == 1  # unchanged — no new calls
+
+
+@patch("scripts.ingest.add_documents")
+@patch("scripts.ingest.register_document")
+@patch("scripts.ingest.verify_hash")
+@patch("scripts.ingest.upload_text")
+@patch("scripts.ingest.get_document")
+def test_run_ingest_file_level_extraction_failure_does_not_abort_run(
+    mock_get_document, mock_upload_text, mock_verify_hash, mock_register_document, mock_add_documents,
+    tmp_path,
+):
+    # One file with invalid UTF-8 bytes (fails _extract_text) alongside one valid file.
+    (tmp_path / "bad.txt").write_bytes(b"\xff\xfe invalid utf-8 bytes \x80\x81")
+    (tmp_path / "solar.txt").write_text(
+        "Solar panels convert sunlight directly into electricity.", encoding="utf-8"
+    )
+    mock_get_document.return_value = {"is_registered": False}
+    mock_upload_text.return_value = "QmFreshCID"
+    mock_verify_hash.return_value = True
+
+    exit_code = run_ingest(str(tmp_path), publisher_key="testkey")
+
+    assert exit_code == 1
+    # The valid file's chunks must still be batched despite the sibling failure.
+    mock_add_documents.assert_called_once()
+    _, kwargs = mock_add_documents.call_args
+    assert kwargs["source_file"] == "solar.txt"
+    assert kwargs["cid_by_hash"]

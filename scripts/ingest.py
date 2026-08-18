@@ -7,6 +7,7 @@ from web3.exceptions import ContractLogicError
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import pypdf
+import pypdf.errors
 
 from blockchain.registry_client import get_document, register_document
 from storage.ipfs_client import IPFSError, upload_text, verify_hash
@@ -38,6 +39,13 @@ def _log_chunk_failure(source_file: str, chunk_id: int, doc_hash: str, reason: s
     print(
         f"[ingest] FAILED chunk source_file={source_file} chunk_id={chunk_id} "
         f"doc_hash={doc_hash}: {reason}",
+        file=sys.stderr,
+    )
+
+
+def _log_file_failure(source_file: str, reason: str) -> None:
+    print(
+        f"[ingest] FAILED file source_file={source_file}: {reason}",
         file=sys.stderr,
     )
 
@@ -75,8 +83,13 @@ def run_ingest(input_path: str, publisher_key: str = PUBLISHER_1_KEY, collection
     any_failures = False
 
     for file_path in _collect_input_files(Path(input_path)):
-        raw_text = _extract_text(file_path)
-        records = ingest_prep(raw_text)
+        try:
+            raw_text = _extract_text(file_path)
+            records = ingest_prep(raw_text)
+        except (UnicodeDecodeError, OSError, pypdf.errors.PyPdfError) as exc:
+            _log_file_failure(file_path.name, repr(exc))
+            any_failures = True
+            continue
 
         cid_by_hash: dict[str, str] = {}
         surviving_records = []
