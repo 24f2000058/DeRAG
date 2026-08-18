@@ -63,3 +63,52 @@ def _resolve_chunk_cid(record: dict, source_file: str, publisher_key: str) -> st
     except (IPFSError, requests.exceptions.ConnectionError, ContractLogicError) as exc:
         _log_chunk_failure(source_file, record["chunk_id"], doc_hash, repr(exc))
         return None
+
+
+import argparse
+
+from pipeline.ingest_prep import ingest_prep
+from retrieval.vector_store import add_documents
+
+
+def run_ingest(input_path: str, publisher_key: str = PUBLISHER_1_KEY, collection=None) -> int:
+    any_failures = False
+
+    for file_path in _collect_input_files(Path(input_path)):
+        raw_text = _extract_text(file_path)
+        records = ingest_prep(raw_text)
+
+        cid_by_hash: dict[str, str] = {}
+        surviving_records = []
+        for record in records:
+            cid = _resolve_chunk_cid(record, source_file=file_path.name, publisher_key=publisher_key)
+            if cid is None:
+                any_failures = True
+                continue
+            cid_by_hash[record["hash"]] = cid
+            surviving_records.append(record)
+
+        add_documents(
+            surviving_records,
+            source_file=file_path.name,
+            collection=collection,
+            cid_by_hash=cid_by_hash,
+        )
+
+    return 1 if any_failures else 0
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Ingest text/PDF documents into DeRAG.")
+    parser.add_argument("--input", required=True, help="Path to a file or directory of .txt/.pdf files")
+    parser.add_argument(
+        "--publisher-key",
+        default=PUBLISHER_1_KEY,
+        help="Private key used to sign on-chain registrations (defaults to Hardhat Account #1)",
+    )
+    args = parser.parse_args()
+    sys.exit(run_ingest(args.input, publisher_key=args.publisher_key))
+
+
+if __name__ == "__main__":
+    main()

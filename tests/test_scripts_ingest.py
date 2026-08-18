@@ -161,3 +161,87 @@ def test_resolve_chunk_cid_register_document_contract_revert_is_caught(
     result = _resolve_chunk_cid(_RECORD, source_file="solar.txt", publisher_key=PUBLISHER_1_KEY)
 
     assert result is None
+
+
+from scripts.ingest import run_ingest
+
+
+@patch("scripts.ingest.add_documents")
+@patch("scripts.ingest.register_document")
+@patch("scripts.ingest.verify_hash")
+@patch("scripts.ingest.upload_text")
+@patch("scripts.ingest.get_document")
+def test_run_ingest_all_success_returns_zero_and_batches_one_call_per_file(
+    mock_get_document, mock_upload_text, mock_verify_hash, mock_register_document, mock_add_documents,
+    tmp_path,
+):
+    (tmp_path / "solar.txt").write_text(
+        "Solar panels convert sunlight directly into electricity.", encoding="utf-8"
+    )
+    mock_get_document.return_value = {"is_registered": False}
+    mock_upload_text.return_value = "QmFreshCID"
+    mock_verify_hash.return_value = True
+
+    exit_code = run_ingest(str(tmp_path), publisher_key="testkey")
+
+    assert exit_code == 0
+    mock_add_documents.assert_called_once()
+    _, kwargs = mock_add_documents.call_args
+    assert kwargs["source_file"] == "solar.txt"
+    assert kwargs["cid_by_hash"]
+    assert all(cid == "QmFreshCID" for cid in kwargs["cid_by_hash"].values())
+
+
+@patch("scripts.ingest.add_documents")
+@patch("scripts.ingest.register_document")
+@patch("scripts.ingest.verify_hash")
+@patch("scripts.ingest.upload_text")
+@patch("scripts.ingest.get_document")
+def test_run_ingest_verify_failure_excludes_chunk_but_continues_and_returns_nonzero(
+    mock_get_document, mock_upload_text, mock_verify_hash, mock_register_document, mock_add_documents,
+    tmp_path,
+):
+    # Long text guarantees multiple chunks (chunk_size=500 in pipeline.chunking).
+    long_text = ("Wind turbines convert kinetic energy into electricity. " * 20)
+    (tmp_path / "wind.txt").write_text(long_text, encoding="utf-8")
+    mock_get_document.return_value = {"is_registered": False}
+    mock_upload_text.return_value = "QmSomeCID"
+    mock_verify_hash.return_value = False
+
+    exit_code = run_ingest(str(tmp_path), publisher_key="testkey")
+
+    assert exit_code == 1
+    mock_register_document.assert_not_called()
+    # add_documents is still called for the file, but with zero surviving records
+    # since every chunk in this synthetic case failed verify_hash.
+    mock_add_documents.assert_called_once()
+    _, kwargs = mock_add_documents.call_args
+    assert kwargs["cid_by_hash"] == {}
+
+
+@patch("scripts.ingest.add_documents")
+@patch("scripts.ingest.register_document")
+@patch("scripts.ingest.verify_hash")
+@patch("scripts.ingest.upload_text")
+@patch("scripts.ingest.get_document")
+def test_run_ingest_second_run_makes_zero_new_register_document_calls(
+    mock_get_document, mock_upload_text, mock_verify_hash, mock_register_document, mock_add_documents,
+    tmp_path,
+):
+    (tmp_path / "solar.txt").write_text(
+        "Solar panels convert sunlight directly into electricity.", encoding="utf-8"
+    )
+    mock_upload_text.return_value = "QmFreshCID"
+    mock_verify_hash.return_value = True
+
+    # First run: nothing registered yet.
+    mock_get_document.return_value = {"is_registered": False}
+    run_ingest(str(tmp_path), publisher_key="testkey")
+    assert mock_register_document.call_count == 1
+
+    # Second run: registry now reports it as already registered.
+    mock_get_document.return_value = {"is_registered": True, "ipfs_cid": "QmFreshCID"}
+    exit_code = run_ingest(str(tmp_path), publisher_key="testkey")
+
+    assert exit_code == 0
+    assert mock_register_document.call_count == 1  # unchanged — no new calls
