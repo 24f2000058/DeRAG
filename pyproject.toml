@@ -16,6 +16,7 @@ dependencies = [
     "numpy>=1.26",
     "pandas>=2.2",
     "ollama>=0.3",
+    "pypdf>=4.0",
     "python-dotenv>=1.0",
 ]
 
