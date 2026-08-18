@@ -22,7 +22,10 @@ def init_store(persist_directory: str | None = None) -> Collection:
 
 
 def add_documents(
-    records: list[dict], source_file: str, collection: Collection | None = None
+    records: list[dict],
+    source_file: str,
+    collection: Collection | None = None,
+    cid_by_hash: dict[str, str] | None = None,
 ) -> None:
     if not records:
         return
@@ -44,8 +47,9 @@ def add_documents(
             "source_file": source_file,
             "chunk_id": record["chunk_id"],
             # Ruling: Chroma silently drops None-valued metadata keys entirely
-            # (not an error) — "" is the placeholder that survives the round-trip
-            "ipfs_cid": "",
+            # (not an error) — "" is the placeholder that survives the round-trip.
+            # cid_by_hash overrides the placeholder only for hashes present in it.
+            "ipfs_cid": (cid_by_hash or {}).get(record["hash"], ""),
             "doc_hash": record["hash"],
         }
         for record in records
