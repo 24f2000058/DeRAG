@@ -163,6 +163,19 @@ def test_resolve_chunk_cid_register_document_contract_revert_is_caught(
     assert result is None
 
 
+@patch("scripts.ingest.register_document")
+@patch("scripts.ingest.verify_hash")
+@patch("scripts.ingest.upload_text")
+@patch("scripts.ingest.get_document")
+def test_resolve_chunk_cid_unlisted_exception_propagates_instead_of_being_swallowed(
+    mock_get_document, mock_upload_text, mock_verify_hash, mock_register_document
+):
+    mock_get_document.side_effect = KeyError("boom")
+
+    with pytest.raises(KeyError):
+        _resolve_chunk_cid(_RECORD, source_file="solar.txt", publisher_key=PUBLISHER_1_KEY)
+
+
 from scripts.ingest import run_ingest
 
 

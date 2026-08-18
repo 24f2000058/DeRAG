@@ -1,3 +1,15 @@
+"""End-to-end ingestion pipeline: extract text, upload to IPFS, register on-chain, store in Chroma.
+
+Requires these environment variables to be set (see .env.example):
+    WEB3_PROVIDER_URI   e.g. http://127.0.0.1:8545
+    IPFS_API_URL        e.g. /ip4/127.0.0.1/tcp/5001
+
+Usage:
+    python scripts/ingest.py --input data/sample.txt
+    python scripts/ingest.py --input data/demo_corpus/
+"""
+
+import argparse
 import sys
 from pathlib import Path
 
@@ -10,6 +22,8 @@ import pypdf
 import pypdf.errors
 
 from blockchain.registry_client import get_document, register_document
+from pipeline.ingest_prep import ingest_prep
+from retrieval.vector_store import add_documents
 from storage.ipfs_client import IPFSError, upload_text, verify_hash
 
 # Hardhat's deterministic default Account #1 private key — same constant
@@ -73,16 +87,18 @@ def _resolve_chunk_cid(record: dict, source_file: str, publisher_key: str) -> st
         return None
 
 
-import argparse
-
-from pipeline.ingest_prep import ingest_prep
-from retrieval.vector_store import add_documents
-
-
 def run_ingest(input_path: str, publisher_key: str = PUBLISHER_1_KEY, collection=None) -> int:
+    if not Path(input_path).exists():
+        print(f"[ingest] ERROR: input path does not exist: {input_path}", file=sys.stderr)
+        return 1
+
     any_failures = False
 
-    for file_path in _collect_input_files(Path(input_path)):
+    input_files = _collect_input_files(Path(input_path))
+    if not input_files:
+        print(f"[ingest] WARNING: no .txt/.pdf files found in {input_path}", file=sys.stderr)
+
+    for file_path in input_files:
         try:
             raw_text = _extract_text(file_path)
             records = ingest_prep(raw_text)
@@ -107,6 +123,7 @@ def run_ingest(input_path: str, publisher_key: str = PUBLISHER_1_KEY, collection
             collection=collection,
             cid_by_hash=cid_by_hash,
         )
+        print(f"[ingest] {file_path.name}: {len(surviving_records)} chunk(s) stored")
 
     return 1 if any_failures else 0
 
