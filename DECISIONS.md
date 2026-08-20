@@ -319,3 +319,53 @@ later milestone next touches the relevant file.
   file-level issues uncaught; this was identified during code review before
   merge and fixed to ensure both layers conform to the stated
   failure-isolation requirement.
+
+## Milestone 6 — Trust-Weighted Re-ranking (2026-08-20)
+
+- **Milestone 6 reputation read: `verify_integrity()`, confirmed over
+  `get_document()`.** Re-ranking only ever needs `exists` and `reputation`
+  per candidate — never `ipfs_cid` or `timestamp` — and runs on every
+  query against every retrieved candidate, so the cheaper 3-tuple contract
+  call is the correct choice on both grounds. `get_document()`'s six-field
+  getter remains reserved for Milestone 5's skip-check and Milestone 8's
+  audit UI, per the Milestone 3 design.
+- **`exists=False` no longer treated as `reputation=0`.** The original
+  framing called `reputation=0` the "worst case" for an unregistered
+  chunk. That stopped holding once `updateReputation()`'s delta was
+  confirmed unbounded (Milestone 3): `registerDocument()` assigns
+  `reputation=0` to every freshly-published, not-yet-reviewed document, so
+  0 is the neutral midpoint of the reputation range, not a floor. A chunk
+  present in Chroma with zero on-chain record at all is a strictly weaker
+  provenance signal than a registered-but-neutral chunk, so it must
+  normalize below every registered candidate in its batch, including one
+  sitting at exactly `reputation=0`. `normalize_reputation()` implements
+  this as a hard floor: `floor = min(reputation for existing candidates in
+  the batch) - FLOOR_PENALTY`, or `0 - FLOOR_PENALTY` if no candidate in
+  the batch is registered. `FLOOR_PENALTY = 50` was chosen relative to the
+  sigmoid's `SCALE = 10` (5 half-widths) specifically so the floor's
+  normalized value saturates near 0 regardless of the batch's actual
+  minimum — an earlier `FLOOR_PENALTY = 1` was rejected during design
+  because it produced only a ~0.025 normalized-reputation gap, too small
+  to reliably survive a realistic similarity-score gap between candidates.
+  Exclusion from top-K entirely was considered and rejected: a hard floor
+  keeps the scoring function total (no filtering side-channel) and keeps
+  unregistered chunks visible-but-demoted, which serves both Milestone 8's
+  audit UI and Milestone 10's evaluation better than silently dropping
+  them.
+- **Normalization: sigmoid, not min-max.** `normalized_reputation =
+  1 / (1 + exp(-reputation / SCALE))`, a fixed global curve rather than a
+  per-batch min-max scale, for two reasons. First, Milestone 10's
+  MRR/Precision@K evaluation needs a document's trust contribution to be
+  reproducible across queries — min-max would make the same document
+  normalize differently depending on which unrelated candidates happened
+  to land in the same top-K for a given query, conflating the document's
+  own reputation with the incidental composition of that query's
+  candidate set. Second, min-max degenerates (divide-by-~0) when all K
+  candidates share similar or identical reputation, which needs a
+  special-cased fallback that sigmoid does not. `SCALE = 10` is a named
+  module-level constant in `retrieval/rerank.py`, tunable alongside
+  `alpha` once Milestone 9's real poisoned corpus is available.
+- **`alpha = 0.7` confirmed as the default**, implemented as a named,
+  overridable parameter on `hybrid_score()` and `trust_weighted_rerank()`
+  rather than an inline literal, per spec — Milestone 9 will tune it
+  empirically.
