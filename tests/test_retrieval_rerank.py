@@ -11,6 +11,7 @@ from retrieval.rerank import (
     hybrid_score,
     trust_weighted_rerank,
 )
+from retrieval.standard_rag import standard_rag_answer_context
 
 
 def test_get_candidate_reputation_returns_exists_and_reputation_tuple():
@@ -225,3 +226,46 @@ def test_trust_weighted_rerank_respects_k_return():
         results = trust_weighted_rerank("test query", k_retrieve=2, k_return=1)
 
     assert len(results) == 1
+
+
+def test_trust_weighted_rerank_alpha_one_matches_pure_similarity_ranking():
+    # poisoned_hash has the higher similarity (0.95 > 0.90) but the lower
+    # reputation (-50 < 10) — the two orderings diverge, so this actually
+    # exercises alpha's boundary rather than passing by coincidence.
+    hits = _poisoning_scenario_hits()
+
+    with patch("retrieval.standard_rag.query", return_value=hits):
+        standard_results = standard_rag_answer_context("test query", k=2)
+
+    with (
+        patch("retrieval.rerank.query", return_value=hits),
+        patch("retrieval.rerank.verify_integrity", side_effect=_poisoning_scenario_reputations),
+    ):
+        trust_results = trust_weighted_rerank("test query", k_retrieve=2, k_return=2, alpha=1.0)
+
+    assert [hit["metadata"]["doc_hash"] for hit in trust_results] == [
+        hit["metadata"]["doc_hash"] for hit in standard_results
+    ]
+    assert [hit["metadata"]["doc_hash"] for hit in trust_results] == [
+        "poisoned_hash",
+        "factual_hash",
+    ]
+
+
+def test_trust_weighted_rerank_alpha_zero_matches_pure_reputation_ranking():
+    # Same divergent fixture as the alpha=1.0 test: at alpha=0.0 the
+    # similarity term drops out entirely, so ranking inverts to follow
+    # reputation alone — factual_hash (reputation=10) beats poisoned_hash
+    # (reputation=-50) despite its lower similarity.
+    hits = _poisoning_scenario_hits()
+
+    with (
+        patch("retrieval.rerank.query", return_value=hits),
+        patch("retrieval.rerank.verify_integrity", side_effect=_poisoning_scenario_reputations),
+    ):
+        results = trust_weighted_rerank("test query", k_retrieve=2, k_return=2, alpha=0.0)
+
+    assert [hit["metadata"]["doc_hash"] for hit in results] == [
+        "factual_hash",
+        "poisoned_hash",
+    ]
