@@ -3,7 +3,7 @@ import math
 import pytest
 from unittest.mock import patch
 
-from retrieval.rerank import FLOOR_PENALTY, SCALE, get_candidate_reputation, normalize_reputation
+from retrieval.rerank import FLOOR_PENALTY, SCALE, get_candidate_reputation, normalize_reputation, hybrid_score
 
 
 def test_get_candidate_reputation_returns_exists_and_reputation_tuple():
@@ -95,3 +95,23 @@ def test_normalize_reputation_single_candidate_does_not_crash():
 
     assert len(result) == 1
     assert 0.0 < result[0]["normalized_reputation"] < 1.0
+
+
+def test_hybrid_score_default_alpha_weights_similarity_at_seventy_percent():
+    score = hybrid_score(similarity=1.0, normalized_reputation=0.0, alpha=0.7)
+    assert score == pytest.approx(0.7)
+
+
+def test_hybrid_score_default_alpha_weights_reputation_at_thirty_percent():
+    score = hybrid_score(similarity=0.0, normalized_reputation=1.0, alpha=0.7)
+    assert score == pytest.approx(0.3)
+
+
+def test_hybrid_score_respects_custom_alpha():
+    score = hybrid_score(similarity=0.5, normalized_reputation=0.5, alpha=0.3)
+    assert score == pytest.approx(0.5)
+
+
+def test_hybrid_score_uses_default_alpha_when_not_specified():
+    score = hybrid_score(similarity=1.0, normalized_reputation=0.0)
+    assert score == pytest.approx(0.7)

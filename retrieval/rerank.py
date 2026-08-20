@@ -22,3 +22,7 @@ def normalize_reputation(candidates: list[dict]) -> list[dict]:
         normalized = 1 / (1 + math.exp(-effective_reputation / SCALE))
         result.append({**candidate, "normalized_reputation": normalized})
     return result
+
+
+def hybrid_score(similarity: float, normalized_reputation: float, alpha: float = 0.7) -> float:
+    return alpha * similarity + (1 - alpha) * normalized_reputation
