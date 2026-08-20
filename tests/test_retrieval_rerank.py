@@ -104,6 +104,14 @@ def test_normalize_reputation_single_candidate_does_not_crash():
     assert 0.0 < result[0]["normalized_reputation"] < 1.0
 
 
+def test_normalize_reputation_extreme_negative_reputation_does_not_overflow():
+    candidates = [{"exists": True, "reputation": -100000}]
+
+    result = normalize_reputation(candidates)
+
+    assert result[0]["normalized_reputation"] == pytest.approx(0.0, abs=1e-9)
+
+
 def test_hybrid_score_default_alpha_weights_similarity_at_seventy_percent():
     score = hybrid_score(similarity=1.0, normalized_reputation=0.0, alpha=0.7)
     assert score == pytest.approx(0.7)

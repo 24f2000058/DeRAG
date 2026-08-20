@@ -20,7 +20,8 @@ def normalize_reputation(candidates: list[dict]) -> list[dict]:
     result = []
     for candidate in candidates:
         effective_reputation = candidate["reputation"] if candidate["exists"] else floor
-        normalized = 1 / (1 + math.exp(-effective_reputation / SCALE))
+        exponent = max(-700.0, min(700.0, effective_reputation / SCALE))
+        normalized = 1 / (1 + math.exp(-exponent))
         result.append({**candidate, "normalized_reputation": normalized})
     return result
 

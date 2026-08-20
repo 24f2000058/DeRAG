@@ -368,4 +368,11 @@ later milestone next touches the relevant file.
 - **`alpha = 0.7` confirmed as the default**, implemented as a named,
   overridable parameter on `hybrid_score()` and `trust_weighted_rerank()`
   rather than an inline literal, per spec — Milestone 9 will tune it
+  empirically. Note this is not a literal 70/30 share of two equally-scaled
+  terms: `similarity` comes from `retrieval/vector_store.py`'s
+  `1.0 - distance` against a cosine-distance Chroma collection, so its
+  practical range is `[-1, 1]` (mildly negative similarities for unrelated
+  text are routine with this project's embedding model), while
+  `normalized_reputation` is strictly bounded to `(0, 1)` by the sigmoid.
+  Keep this domain mismatch in mind when Milestone 9 tunes `alpha`
   empirically.
