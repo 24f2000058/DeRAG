@@ -3,7 +3,14 @@ import math
 import pytest
 from unittest.mock import patch
 
-from retrieval.rerank import FLOOR_PENALTY, SCALE, get_candidate_reputation, normalize_reputation, hybrid_score
+from retrieval.rerank import (
+    FLOOR_PENALTY,
+    SCALE,
+    get_candidate_reputation,
+    normalize_reputation,
+    hybrid_score,
+    trust_weighted_rerank,
+)
 
 
 def test_get_candidate_reputation_returns_exists_and_reputation_tuple():
@@ -115,3 +122,98 @@ def test_hybrid_score_respects_custom_alpha():
 def test_hybrid_score_uses_default_alpha_when_not_specified():
     score = hybrid_score(similarity=1.0, normalized_reputation=0.0)
     assert score == pytest.approx(0.7)
+
+
+def _poisoning_scenario_hits():
+    return [
+        {
+            "chroma_id": "poisoned_hash",
+            "text": "poisoned chunk with strong keyword overlap",
+            "similarity": 0.95,
+            "metadata": {"doc_hash": "poisoned_hash", "source_file": "poison.txt"},
+        },
+        {
+            "chroma_id": "factual_hash",
+            "text": "factual chunk with slightly lower overlap",
+            "similarity": 0.90,
+            "metadata": {"doc_hash": "factual_hash", "source_file": "factual.txt"},
+        },
+    ]
+
+
+def _poisoning_scenario_reputations(doc_hash):
+    reputations = {
+        "poisoned_hash": {"exists": True, "reputation": -50, "publisher": "0xabc"},
+        "factual_hash": {"exists": True, "reputation": 10, "publisher": "0xdef"},
+    }
+    return reputations[doc_hash]
+
+
+def test_trust_weighted_rerank_demotes_high_similarity_negative_reputation_doc():
+    # Prove the pure-cosine baseline (Standard RAG) would rank the poisoned
+    # doc #1: it has the higher similarity score.
+    standard_rag_order = sorted(
+        _poisoning_scenario_hits(), key=lambda hit: hit["similarity"], reverse=True
+    )
+    assert standard_rag_order[0]["metadata"]["doc_hash"] == "poisoned_hash"
+
+    with (
+        patch("retrieval.rerank.query", return_value=_poisoning_scenario_hits()),
+        patch("retrieval.rerank.verify_integrity", side_effect=_poisoning_scenario_reputations),
+    ):
+        results = trust_weighted_rerank("test query", k_retrieve=2, k_return=2)
+
+    assert results[0]["metadata"]["doc_hash"] == "factual_hash"
+    assert results[1]["metadata"]["doc_hash"] == "poisoned_hash"
+
+
+def _unregistered_scenario_hits():
+    return [
+        {
+            "chroma_id": "unregistered_hash",
+            "text": "highest similarity but never registered on-chain",
+            "similarity": 0.95,
+            "metadata": {"doc_hash": "unregistered_hash", "source_file": "unregistered.txt"},
+        },
+        {
+            "chroma_id": "neutral_hash",
+            "text": "lower similarity but registered with neutral reputation",
+            "similarity": 0.80,
+            "metadata": {"doc_hash": "neutral_hash", "source_file": "neutral.txt"},
+        },
+    ]
+
+
+def _unregistered_scenario_reputations(doc_hash):
+    reputations = {
+        "unregistered_hash": {"exists": False, "reputation": 0, "publisher": "0x" + "0" * 40},
+        "neutral_hash": {"exists": True, "reputation": 0, "publisher": "0xabc"},
+    }
+    return reputations[doc_hash]
+
+
+def test_trust_weighted_rerank_ranks_unregistered_candidate_below_neutral_registered_one():
+    hits = _unregistered_scenario_hits()
+    assert hits[0]["metadata"]["doc_hash"] == "unregistered_hash"
+    assert hits[0]["similarity"] > hits[1]["similarity"]
+
+    with (
+        patch("retrieval.rerank.query", return_value=hits),
+        patch("retrieval.rerank.verify_integrity", side_effect=_unregistered_scenario_reputations),
+    ):
+        results = trust_weighted_rerank("test query", k_retrieve=2, k_return=2)
+
+    assert results[0]["metadata"]["doc_hash"] == "neutral_hash"
+    assert results[1]["metadata"]["doc_hash"] == "unregistered_hash"
+
+
+def test_trust_weighted_rerank_respects_k_return():
+    hits = _poisoning_scenario_hits()
+
+    with (
+        patch("retrieval.rerank.query", return_value=hits),
+        patch("retrieval.rerank.verify_integrity", side_effect=_poisoning_scenario_reputations),
+    ):
+        results = trust_weighted_rerank("test query", k_retrieve=2, k_return=1)
+
+    assert len(results) == 1
