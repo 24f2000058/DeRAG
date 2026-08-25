@@ -376,3 +376,101 @@ later milestone next touches the relevant file.
   `normalized_reputation` is strictly bounded to `(0, 1)` by the sigmoid.
   Keep this domain mismatch in mind when Milestone 9 tunes `alpha`
   empirically.
+
+## Milestone 7 — Local LLM Generation (2026-08-25)
+
+- **Model: `gemma4:12b` (Q4_K_M, 11.9B params), not the spec's
+  Phi-3-mini-4k-instruct-q4 or Llama-3-8B-Instruct-q4_K_M.** All three are
+  open-weight/open-license, consistent with the rest of the stack's
+  no-cloud-API stance, so the choice came down to quality-vs-memory on the
+  actual target machine (7.6GB total RAM, RTX 4060 8GB VRAM) rather than
+  license. `gemma4:12b` was already pulled locally and, once GPU-offloaded
+  with the tuning below, answers in ~1-2s with no quality compromise from
+  quantization pressure — a materially better quality/memory tradeoff on
+  this hardware than pulling either spec-listed alternative fresh. Plain
+  CPU inference was rejected outright (verified live: 90s timeout, RAM
+  collapsed to 82MB free, heavy swap thrashing — unusable). GPU offload
+  without the tuning below was viable but mediocre (~24 tok/s generation).
+- **Ollama systemd tuning is REQUIRED for `gemma4:12b` to be viable, and it
+  lives entirely outside this project's reproducible files** (not in
+  `pyproject.toml`, `.env.example`, or anything Python-managed — it's OS
+  service configuration on the demo machine only). Applied via
+  `sudo systemctl edit ollama.service`, drop-in file
+  `/etc/systemd/system/ollama.service.d/override.conf`:
+  ```
+  [Service]
+  Environment="OLLAMA_NOPRUNE=1"
+  Environment="OLLAMA_KV_CACHE_TYPE=q8_0"
+  Environment="OLLAMA_FLASH_ATTENTION=1"
+  Environment="OLLAMA_KEEP_ALIVE=-1"
+  ```
+  then `sudo systemctl daemon-reload && sudo systemctl restart ollama`.
+  Verified live against the running process (`systemctl show ollama -p
+  Environment`) after a common failure mode: the drop-in file's
+  `[Service]` header line is easy to omit when pasting only the
+  `Environment=` lines into the `systemctl edit` buffer, which makes
+  systemd silently ignore every line in the file ("Assignment outside of
+  section" in `journalctl -u ollama`) while the service still reports
+  `active`. **TODO for Milestone 10's README**: copy this block verbatim
+  into the setup/quickstart instructions, including the `[Service]` header
+  and the daemon-reload/restart step, and note that a fresh machine
+  without this tuning applied will fall back to CPU inference or partial,
+  slow GPU offload rather than fail outright — so a missing override is a
+  silent perf regression, not a crash, and easy to miss during setup.
+- **`gemma4:12b` requires `think: false`, which is a `/api/chat`-only
+  parameter — this is why generation targets `/api/chat`, not
+  `/api/generate`.** gemma4 is a thinking model: its real answer text
+  first lands in a separate `message.thinking` field, and without `think:
+  false` a capped `num_predict` can be exhausted mid-thought before any
+  text ever reaches `message.content` — this produced an apparent "empty
+  response" bug in earlier testing that was actually a token-budget/mode
+  issue, not a serialization bug. Confirmed live, not assumed: with
+  `think: false`, `/api/chat` returns `message.content` populated
+  correctly on both blocking and streaming calls.
+- **Verified real Ollama API shape** (via live calls against the tuned,
+  running service — not from memory or docs):
+  - Endpoint: `POST http://localhost:11434/api/chat`
+  - Request body: `{"model": "gemma4:12b", "messages": [{"role": "user",
+    "content": <prompt>}], "stream": <bool>, "think": false, "options":
+    {"temperature": 0.1, "num_predict": 512}}`
+  - Blocking (`stream: false`): single JSON object; answer text at
+    `message.content` (string). Also present: `done` (`true`),
+    `done_reason`, `eval_count`, `total_duration`, etc.
+  - Streaming (`stream: true`): newline-delimited JSON, one object per
+    line. Each line: `{"model": ..., "created_at": ..., "message":
+    {"role": "assistant", "content": <text delta>}, "done": <bool>}`.
+    Text delta is in `message.content` (NOT a top-level `response` field —
+    that name only applies to the separate `/api/generate` endpoint, which
+    this project does not use). Final line has `done: true`, an empty
+    `message.content`, and the same stats fields as the blocking response.
+  - Confirmed empty-`response`-field failure mode (see above) does NOT
+    occur once `think: false` is set; a grounded 2-context RAG-style test
+    prompt answered correctly, citing only the given context, in ~1.9s
+    total including streaming overhead.
+- **Prompt template** (implemented in `generation/llm_client.py`'s
+  `build_prompt()`, quoted here verbatim since Milestone 10's
+  hallucination write-up will reference this exact wording):
+  ```
+  You are answering a question using ONLY the provided context sources. Do not use outside knowledge.
+
+  Context sources:
+  [1] (<source_file or chroma_id>): <text>
+  [2] (<source_file or chroma_id>): <text>
+  [3] (<source_file or chroma_id>): <text>
+
+  Question: <query>
+
+  Instructions:
+  - Answer only using the context above.
+  - If the context does not contain enough information to answer, say so plainly instead of guessing.
+  - Cite which source number(s) (e.g. [1], [2]) you drew the answer from.
+  ```
+  `build_prompt()` reads only `text` and `metadata.source_file` (falling
+  back to `chroma_id` when `source_file` is absent) from each context
+  dict — the fields common to both Milestone 2's
+  `standard_rag_answer_context` (plain `{chroma_id, text, similarity,
+  metadata}`) and Milestone 6's `trust_weighted_rerank` (same shape plus
+  `exists`/`reputation`/`normalized_reputation`/`score`). It never reads
+  `similarity`, `reputation`, or `score`, so the same function works
+  unmodified regardless of which retrieval mode's top-3 result Milestone
+  8's UI passes in.
