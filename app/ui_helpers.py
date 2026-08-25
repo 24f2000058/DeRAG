@@ -22,6 +22,12 @@ def format_audit_row(doc_hash: str) -> dict:
             "error": f"registry unreachable: {exc}",
         }
 
+    if not doc["is_registered"]:
+        return {
+            "doc_hash_short": format_hash_short(doc_hash),
+            "error": "not registered on-chain",
+        }
+
     row = {
         "doc_hash_short": format_hash_short(doc_hash),
         "ipfs_cid": doc["ipfs_cid"],

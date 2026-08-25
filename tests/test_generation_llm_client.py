@@ -109,6 +109,7 @@ def test_build_prompt_falls_back_to_chroma_id_when_source_file_missing():
 
 def test_generate_blocking_returns_message_content_from_mocked_response():
     mock_response = Mock()
+    mock_response.status_code = 200
     mock_response.json.return_value = {
         "model": "gemma4:12b",
         "created_at": "2026-08-25T06:33:38.932837598Z",
@@ -129,6 +130,7 @@ def test_generate_blocking_returns_message_content_from_mocked_response():
     assert body["messages"] == [{"role": "user", "content": "What is 2+2?"}]
     assert body["options"]["temperature"] == 0.1
     assert body["options"]["num_predict"] == 512
+    assert called_kwargs["timeout"] == 10
 
 
 def test_generate_streaming_yields_text_chunks_from_mocked_ndjson_response():
@@ -139,6 +141,7 @@ def test_generate_streaming_yields_text_chunks_from_mocked_ndjson_response():
         b'{"model":"gemma4:12b","message":{"role":"assistant","content":""},"done":true,"done_reason":"stop"}',
     ]
     mock_response = Mock()
+    mock_response.status_code = 200
     mock_response.iter_lines.return_value = ndjson_lines
     with patch("generation.llm_client.requests.post", return_value=mock_response) as mock_post:
         chunks = list(generate_streaming("Where is the Eiffel Tower?"))
@@ -149,6 +152,7 @@ def test_generate_streaming_yields_text_chunks_from_mocked_ndjson_response():
     assert called_kwargs["json"]["stream"] is True
     assert called_kwargs["stream"] is True
     assert called_kwargs["json"]["think"] is False
+    assert called_kwargs["timeout"] == (10, None)
 
 
 def test_generate_blocking_wraps_connection_error_in_generation_error():
@@ -169,6 +173,44 @@ def test_generate_streaming_wraps_connection_error_in_generation_error():
         with pytest.raises(GenerationError) as exc_info:
             list(generate_streaming("hi"))
     assert isinstance(exc_info.value.__cause__, requests.exceptions.ConnectionError)
+
+
+def test_generate_blocking_raises_generation_error_on_non_200_status():
+    mock_response = Mock()
+    mock_response.status_code = 404
+    mock_response.text = "model 'gemma4:12b' not found"
+    with patch("generation.llm_client.requests.post", return_value=mock_response):
+        with pytest.raises(GenerationError) as exc_info:
+            generate_blocking("hi")
+    assert "404" in str(exc_info.value)
+
+
+def test_generate_streaming_raises_generation_error_on_non_200_status():
+    mock_response = Mock()
+    mock_response.status_code = 404
+    mock_response.text = "model 'gemma4:12b' not found"
+    with patch("generation.llm_client.requests.post", return_value=mock_response):
+        with pytest.raises(GenerationError) as exc_info:
+            list(generate_streaming("hi"))
+    assert "404" in str(exc_info.value)
+
+
+def test_generate_streaming_wraps_mid_iteration_request_exception_in_generation_error():
+    ndjson_lines = [
+        b'{"model":"gemma4:12b","message":{"role":"assistant","content":"The"},"done":false}',
+    ]
+
+    def iter_lines_generator():
+        yield from ndjson_lines
+        raise requests.exceptions.ChunkedEncodingError("connection broken")
+
+    mock_response = Mock()
+    mock_response.status_code = 200
+    mock_response.iter_lines.return_value = iter_lines_generator()
+    with patch("generation.llm_client.requests.post", return_value=mock_response):
+        with pytest.raises(GenerationError) as exc_info:
+            list(generate_streaming("hi"))
+    assert isinstance(exc_info.value.__cause__, requests.exceptions.ChunkedEncodingError)
 
 
 @pytest.mark.slow

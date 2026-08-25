@@ -1,8 +1,14 @@
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 import chromadb.errors
 import huggingface_hub.errors
 import streamlit as st
 
 from app.ui_helpers import DERAG_MODE, STANDARD_RAG_MODE, format_audit_row, get_context_docs
+from blockchain.registry_client import RegistryError
 from generation.llm_client import GenerationError, build_prompt, generate_streaming
 from retrieval.vector_store import init_store
 
@@ -26,6 +32,9 @@ if query_text:
         context_docs = get_context_docs(query_text, mode, collection=collection)
     except (chromadb.errors.ChromaError, huggingface_hub.errors.HfHubHTTPError, OSError) as exc:
         st.error(f"Vector store unavailable: {exc}")
+        context_docs = None
+    except RegistryError as exc:
+        st.error(f"Blockchain registry unavailable — is the Hardhat node running? ({exc})")
         context_docs = None
 
     if context_docs is not None:

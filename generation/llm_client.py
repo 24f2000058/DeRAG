@@ -52,22 +52,35 @@ def _request_body(prompt: str, stream: bool) -> dict:
 def generate_blocking(prompt: str) -> str:
     url = f"{_ollama_host()}/api/chat"
     try:
-        response = requests.post(url, json=_request_body(prompt, stream=False))
+        response = requests.post(url, json=_request_body(prompt, stream=False), timeout=10)
     except requests.exceptions.RequestException as exc:
         raise GenerationError(f"could not reach Ollama at {url}: {exc}") from exc
+
+    if response.status_code != 200:
+        raise GenerationError(f"Ollama returned {response.status_code}: {response.text}")
+
     return response.json()["message"]["content"]
 
 
 def generate_streaming(prompt: str) -> Iterator[str]:
     url = f"{_ollama_host()}/api/chat"
     try:
-        response = requests.post(url, json=_request_body(prompt, stream=True), stream=True)
+        response = requests.post(
+            url, json=_request_body(prompt, stream=True), stream=True, timeout=(10, None)
+        )
     except requests.exceptions.RequestException as exc:
         raise GenerationError(f"could not reach Ollama at {url}: {exc}") from exc
-    for line in response.iter_lines():
-        if not line:
-            continue
-        chunk = json.loads(line)
-        content = chunk["message"]["content"]
-        if content:
-            yield content
+
+    if response.status_code != 200:
+        raise GenerationError(f"Ollama returned {response.status_code}: {response.text}")
+
+    try:
+        for line in response.iter_lines():
+            if not line:
+                continue
+            chunk = json.loads(line)
+            content = chunk["message"]["content"]
+            if content:
+                yield content
+    except requests.exceptions.RequestException as exc:
+        raise GenerationError(f"connection lost while streaming from Ollama at {url}: {exc}") from exc

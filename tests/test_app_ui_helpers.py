@@ -75,6 +75,28 @@ def test_format_audit_row_collapses_on_registry_error():
     assert "publisher" not in row
 
 
+def test_format_audit_row_collapses_on_unregistered_document():
+    fake_doc = {
+        "publisher": "0x0000000000000000000000000000000000000000",
+        "content_hash": "0x" + "0" * 64,
+        "ipfs_cid": "",
+        "reputation_score": 0,
+        "timestamp": 0,
+        "is_registered": False,
+    }
+    with patch("app.ui_helpers.get_document", return_value=fake_doc) as mock_get_document, \
+         patch("app.ui_helpers.verify_hash") as mock_verify_hash:
+        row = format_audit_row("a" * 64)
+
+    mock_get_document.assert_called_once_with("a" * 64)
+    mock_verify_hash.assert_not_called()
+    assert row["doc_hash_short"] == format_hash_short("a" * 64)
+    assert "error" in row
+    assert "publisher" not in row
+    assert "reputation" not in row
+    assert "verified" not in row
+
+
 def test_format_audit_row_keeps_registry_data_on_ipfs_error():
     fake_doc = {
         "publisher": "0xPublisher",
