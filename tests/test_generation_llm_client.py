@@ -10,6 +10,7 @@ with the gemma4:12b model pulled. Start it, then run:
     uv run pytest -m slow tests/test_generation_llm_client.py
 """
 
+import json
 from unittest.mock import Mock, patch
 
 import pytest
@@ -211,6 +212,24 @@ def test_generate_streaming_wraps_mid_iteration_request_exception_in_generation_
         with pytest.raises(GenerationError) as exc_info:
             list(generate_streaming("hi"))
     assert isinstance(exc_info.value.__cause__, requests.exceptions.ChunkedEncodingError)
+
+
+def test_generate_streaming_raises_generation_error_on_malformed_json_line_preserving_partial_content():
+    ndjson_lines = [
+        b'{"model":"gemma4:12b","message":{"role":"assistant","content":"The"},"done":false}',
+        b"not valid json at all",
+    ]
+    mock_response = Mock()
+    mock_response.status_code = 200
+    mock_response.iter_lines.return_value = ndjson_lines
+    with patch("generation.llm_client.requests.post", return_value=mock_response):
+        received = []
+        with pytest.raises(GenerationError) as exc_info:
+            for chunk in generate_streaming("hi"):
+                received.append(chunk)
+
+    assert received == ["The"]
+    assert isinstance(exc_info.value.__cause__, json.JSONDecodeError)
 
 
 @pytest.mark.slow

@@ -507,23 +507,28 @@ later milestone next touches the relevant file.
   `generate_streaming()`'s call time. Both `requests.post` calls now carry
   a timeout (`10s` for blocking, `(10, None)` connect-only for streaming,
   matching `IPFSError`'s convention).
-- **Known gap, deliberately deferred, not a surprise for later:** a
-  malformed (non-JSON) NDJSON line from an otherwise-200 streaming
-  response still raises a raw `JSONDecodeError` inside `generate_streaming`'s
-  parsing loop (`generation/llm_client.py`, the `json.loads(line)` call),
-  uncaught by `GenerationError` and therefore uncaught by `app/main.py`'s
-  `except GenerationError`. Reproduced live during this milestone's
-  walkthrough with a fake Ollama endpoint that streams valid chunks then
-  sends one malformed line — confirmed via a real Streamlit `AppTest` run
-  that this crashes the page with a raw traceback, unlike a genuine
-  mid-stream connection drop (also tested live, via the same fake
-  endpoint dropping the connection instead of sending garbage), which
-  *is* caught cleanly as `GenerationError` by the fix already in this
-  branch. Out of scope for Milestone 8 (pre-existing, not touched by this
-  milestone's changes) but flagged as a small fast-follow to fix before
-  Milestone 9's demo rehearsal — the fix is a `try/except
-  json.JSONDecodeError` around the `json.loads(line)` call, same pattern
-  as everything else in this file.
+- **Malformed-NDJSON-mid-stream gap, found live and fixed before merge
+  (not deferred).** A malformed (non-JSON) NDJSON line from an otherwise-200
+  streaming response used to raise a raw `JSONDecodeError` inside
+  `generate_streaming`'s parsing loop (`generation/llm_client.py`, the
+  `json.loads(line)` call), uncaught by `GenerationError` and therefore
+  uncaught by `app/main.py`'s `except GenerationError`. First reproduced
+  live during this milestone's walkthrough with a fake Ollama endpoint
+  that streams valid chunks then sends one malformed line — confirmed via
+  a real Streamlit `AppTest` run that this crashed the page with a raw
+  traceback, unlike a genuine mid-stream connection drop (tested the same
+  way, dropping the connection instead of sending garbage), which was
+  already caught cleanly as `GenerationError`. Fixed by wrapping each
+  line's `json.loads()` call in its own `try/except json.JSONDecodeError`,
+  re-raising as `GenerationError` — the same "something's wrong with the
+  service" signal as a connection drop, so it degrades the same way, and
+  any text already yielded before the bad line stays yielded (streamed
+  content isn't retroactively erased; only the line that failed to parse
+  is lost). Re-verified live with the same fake-Ollama endpoint after the
+  fix: partial answer text stayed rendered, then the same "LLM unreachable
+  — is Ollama running?" message every other `GenerationError` path
+  already produces — no `app/main.py` changes were needed. Regression
+  test: `tests/test_generation_llm_client.py::test_generate_streaming_raises_generation_error_on_malformed_json_line_preserving_partial_content`.
 - **UI structure**: `app/main.py` — a query box, an `st.radio` toggle
   between the exact labels `"Standard RAG"` and `"DeRAG"`
   (`app/ui_helpers.py`'s `STANDARD_RAG_MODE`/`DERAG_MODE` constants), a

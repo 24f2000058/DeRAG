@@ -78,7 +78,12 @@ def generate_streaming(prompt: str) -> Iterator[str]:
         for line in response.iter_lines():
             if not line:
                 continue
-            chunk = json.loads(line)
+            try:
+                chunk = json.loads(line)
+            except json.JSONDecodeError as exc:
+                raise GenerationError(
+                    f"malformed response from Ollama while streaming from {url}: {exc}"
+                ) from exc
             content = chunk["message"]["content"]
             if content:
                 yield content
