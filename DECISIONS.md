@@ -474,3 +474,107 @@ later milestone next touches the relevant file.
   `similarity`, `reputation`, or `score`, so the same function works
   unmodified regardless of which retrieval mode's top-3 result Milestone
   8's UI passes in.
+
+## Milestone 8 — Streamlit Audit UI (2026-08-25)
+
+- **`RegistryError` added to `blockchain/registry_client.py`, symmetric
+  with `IPFSError`.** Milestone 8 is the first time Streamlit code calls
+  `registry_client` directly (per source, per query, to build the sidebar
+  audit trail), so the raw, unwrapped `requests`/`web3` exceptions flagged
+  since Milestone 5 finally had a real caller to break. `RegistryError`
+  wraps `requests.exceptions.RequestException`, `FileNotFoundError`
+  (missing `contracts/deployments/localhost.json`, i.e. contract not
+  deployed), and `web3.exceptions.ContractLogicError`/`ValueError`
+  (on-chain reverts) at `connect()` and every RPC call site in
+  `_send_transaction`, `verify_integrity`, `get_document` — the same
+  shape as `storage/ipfs_client.py`'s `IPFSError`, always raised `from
+  exc` so the cause chain survives. Deliberately **not** wrapped: `KeyError`
+  from a missing `WEB3_PROVIDER_URI`/`PRIVATE_KEY` env var — that's a
+  setup mistake to fail loudly on before a demo starts, not a live-service
+  condition to degrade around. `scripts/ingest.py`'s `_resolve_chunk_cid()`
+  (a pre-existing consumer of `get_document`/`register_document`) had to
+  be updated in the same change — it was catching the exact raw exception
+  types `RegistryError` now replaces, a pre-flight finding caught before
+  any code was written, not after.
+- **`GenerationError` added to `generation/llm_client.py`**, same pattern,
+  covering the third and last external-service client in the project
+  (IPFS, blockchain, now the LLM). Wraps `requests.exceptions.RequestException`
+  around both `requests.post` calls, checks `response.status_code != 200`
+  (a reachable-but-erroring Ollama, e.g. the model not pulled, used to
+  surface as a raw `KeyError`/`JSONDecodeError` instead), and wraps
+  `generate_streaming`'s `response.iter_lines()` loop separately, since
+  that loop only executes lazily on each `next()` call, not at
+  `generate_streaming()`'s call time. Both `requests.post` calls now carry
+  a timeout (`10s` for blocking, `(10, None)` connect-only for streaming,
+  matching `IPFSError`'s convention).
+- **Known gap, deliberately deferred, not a surprise for later:** a
+  malformed (non-JSON) NDJSON line from an otherwise-200 streaming
+  response still raises a raw `JSONDecodeError` inside `generate_streaming`'s
+  parsing loop (`generation/llm_client.py`, the `json.loads(line)` call),
+  uncaught by `GenerationError` and therefore uncaught by `app/main.py`'s
+  `except GenerationError`. Reproduced live during this milestone's
+  walkthrough with a fake Ollama endpoint that streams valid chunks then
+  sends one malformed line — confirmed via a real Streamlit `AppTest` run
+  that this crashes the page with a raw traceback, unlike a genuine
+  mid-stream connection drop (also tested live, via the same fake
+  endpoint dropping the connection instead of sending garbage), which
+  *is* caught cleanly as `GenerationError` by the fix already in this
+  branch. Out of scope for Milestone 8 (pre-existing, not touched by this
+  milestone's changes) but flagged as a small fast-follow to fix before
+  Milestone 9's demo rehearsal — the fix is a `try/except
+  json.JSONDecodeError` around the `json.loads(line)` call, same pattern
+  as everything else in this file.
+- **UI structure**: `app/main.py` — a query box, an `st.radio` toggle
+  between the exact labels `"Standard RAG"` and `"DeRAG"`
+  (`app/ui_helpers.py`'s `STANDARD_RAG_MODE`/`DERAG_MODE` constants), a
+  streamed answer via `st.write_stream(generate_streaming(prompt))`, and
+  an `st.sidebar` audit trail rendering up to 3 sources
+  (`format_audit_row()` per source: truncated doc hash, IPFS CID,
+  publisher, reputation, and a live per-display `verify_hash()` badge —
+  ✅ verified / ⚠️ unverified / ❔ unknown when IPFS alone is down / ❌
+  when the registry itself is unreachable or the document was never
+  registered on-chain). `app/ui_helpers.py` holds every pure, unit-tested
+  function (`format_hash_short`, `format_audit_row`, `get_context_docs`
+  mode dispatch); `app/main.py` itself has zero automated test coverage
+  by design (Streamlit isn't unit-testable) and was instead verified with
+  a real, live walkthrough: all four services running, both toggle modes,
+  and each service stopped one at a time (Hardhat and Ollama simulated
+  via unreachable ports since they're not restartable without sudo/losing
+  in-memory chain state in this environment; IPFS stopped and restarted
+  for real) — every failure degraded to its correct, section-scoped
+  message, never a crash, except for the known gap above.
+- **Streamlit caching**: `@st.cache_resource` (confirmed current API
+  against the installed `streamlit==1.59.2`) wraps a `get_collection()`
+  helper around `retrieval.vector_store.init_store()`, used for Standard
+  RAG mode only — `trust_weighted_rerank()`'s locked Milestone 6 signature
+  has no `collection` param, so DeRAG mode always re-opens Chroma
+  internally on every query. Accepted as-is: that's a local SQLite/disk
+  hit, not a network round-trip like the blockchain/IPFS/Ollama
+  reconnection costs this milestone actually cares about, so it wasn't
+  worth touching a locked interface for a marginal gain.
+- **Launch-command bug caught by the final whole-branch review, not by
+  any test**: `streamlit run app/main.py` only puts `app/` on `sys.path`,
+  not the repo root, so `app/main.py`'s `from app.ui_helpers import ...`
+  etc. failed with `ModuleNotFoundError` under the exact command the
+  milestone's own README instructions use. A `curl` on `/` returning 200
+  did not catch this (Streamlit only executes the script body once a
+  websocket session opens, not on the initial HTTP GET) — the bug was
+  only found by a reviewer tracing the import chain by hand, then fixed
+  with the same `sys.path.insert(0, str(Path(__file__).resolve().parent.parent))`
+  bootstrap `scripts/ingest.py` already used, and verified for real with a
+  live browser-equivalent session (a genuine websocket handshake driving
+  Streamlit's own protobuf protocol) before being trusted as fixed.
+- **`format_audit_row()`'s split failure design**: a registry failure
+  (`RegistryError` from `get_document()`) collapses the whole row — there's
+  nothing else to show. An IPFS-only failure (`IPFSError` from
+  `verify_hash()`) keeps the already-fetched `publisher`/`reputation`/`ipfs_cid`
+  and only marks the verification badge unknown, rather than discarding
+  data that's already known-good. A third case, found only during the
+  final review (not in the original design): a `doc_hash` that was never
+  registered on-chain returns zero-value fields from `get_document()`
+  with no exception at all (Solidity mappings return zero-values for
+  missing keys) — without an explicit `is_registered` check this rendered
+  as a real-looking row blaming IPFS for a document that was simply never
+  registered, which is a materially misleading story for a viva audience.
+  Fixed by checking `is_registered` immediately after a successful
+  `get_document()` call, before any `verify_hash()` attempt.
