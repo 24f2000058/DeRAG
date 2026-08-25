@@ -147,6 +147,7 @@ def test_generate_streaming_yields_text_chunks_from_mocked_ndjson_response():
     assert called_url[0] == "http://localhost:11434/api/chat"
     assert called_kwargs["json"]["stream"] is True
     assert called_kwargs["stream"] is True
+    assert called_kwargs["json"]["think"] is False
 
 
 @pytest.mark.slow
