@@ -13,15 +13,12 @@ import argparse
 import sys
 from pathlib import Path
 
-import requests
-from web3.exceptions import ContractLogicError
-
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import pypdf
 import pypdf.errors
 
-from blockchain.registry_client import get_document, register_document
+from blockchain.registry_client import RegistryError, get_document, register_document
 from pipeline.ingest_prep import ingest_prep
 from retrieval.vector_store import add_documents
 from storage.ipfs_client import IPFSError, upload_text, verify_hash
@@ -82,7 +79,7 @@ def _resolve_chunk_cid(record: dict, source_file: str, publisher_key: str) -> st
 
         register_document(doc_hash, cid, signing_key=publisher_key)
         return cid
-    except (IPFSError, requests.exceptions.ConnectionError, ContractLogicError) as exc:
+    except (IPFSError, RegistryError) as exc:
         _log_chunk_failure(source_file, record["chunk_id"], doc_hash, repr(exc))
         return None
 

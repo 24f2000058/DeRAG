@@ -72,3 +72,73 @@ def test_publisher_attribution_is_per_account_not_global():
     # reassign the publisher.
     with pytest.raises(Exception):
         register_document(hash_a, ipfs_cid="cid-a-again", signing_key=PUBLISHER_2_KEY)
+
+
+from unittest.mock import MagicMock, patch
+
+import requests
+from web3.exceptions import ContractLogicError
+
+from blockchain.registry_client import RegistryError, _send_transaction, connect
+
+TEST_SIGNING_KEY = "0x" + "1" * 64
+
+
+def test_connect_wraps_missing_deployment_file_in_registry_error(monkeypatch):
+    monkeypatch.setenv("WEB3_PROVIDER_URI", "http://127.0.0.1:8545")
+    with patch("builtins.open", side_effect=FileNotFoundError("no such file")):
+        with pytest.raises(RegistryError) as exc_info:
+            connect()
+    assert isinstance(exc_info.value.__cause__, FileNotFoundError)
+
+
+def test_connect_does_not_wrap_missing_env_var():
+    original_value = os.environ.pop("WEB3_PROVIDER_URI", None)
+    try:
+        with pytest.raises(KeyError):
+            connect()
+    finally:
+        if original_value is not None:
+            os.environ["WEB3_PROVIDER_URI"] = original_value
+
+
+def test_send_transaction_wraps_connection_error_in_registry_error():
+    mock_w3 = MagicMock()
+    mock_function_call = MagicMock()
+    mock_function_call.build_transaction.side_effect = requests.exceptions.ConnectionError("down")
+
+    with pytest.raises(RegistryError) as exc_info:
+        _send_transaction(mock_w3, mock_function_call, TEST_SIGNING_KEY)
+    assert isinstance(exc_info.value.__cause__, requests.exceptions.ConnectionError)
+
+
+def test_send_transaction_wraps_contract_logic_error_in_registry_error():
+    mock_w3 = MagicMock()
+    mock_function_call = MagicMock()
+    mock_function_call.build_transaction.side_effect = ContractLogicError("execution reverted: duplicate hash")
+
+    with pytest.raises(RegistryError) as exc_info:
+        _send_transaction(mock_w3, mock_function_call, TEST_SIGNING_KEY)
+    assert isinstance(exc_info.value.__cause__, ContractLogicError)
+
+
+def test_verify_integrity_wraps_connection_error_in_registry_error():
+    mock_contract = MagicMock()
+    mock_contract.functions.verifyIntegrity.return_value.call.side_effect = (
+        requests.exceptions.ConnectionError("down")
+    )
+    with patch("blockchain.registry_client.connect", return_value=(MagicMock(), mock_contract)):
+        with pytest.raises(RegistryError) as exc_info:
+            verify_integrity("a" * 64)
+    assert isinstance(exc_info.value.__cause__, requests.exceptions.ConnectionError)
+
+
+def test_get_document_wraps_contract_logic_error_in_registry_error():
+    mock_contract = MagicMock()
+    mock_contract.functions.documentLedger.return_value.call.side_effect = ContractLogicError(
+        "execution reverted"
+    )
+    with patch("blockchain.registry_client.connect", return_value=(MagicMock(), mock_contract)):
+        with pytest.raises(RegistryError) as exc_info:
+            get_document("a" * 64)
+    assert isinstance(exc_info.value.__cause__, ContractLogicError)

@@ -16,9 +16,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-import requests
-from web3.exceptions import ContractLogicError
 
+from blockchain.registry_client import RegistryError
 from scripts.ingest import PUBLISHER_1_KEY, _collect_input_files, _extract_text, _resolve_chunk_cid
 
 
@@ -137,7 +136,7 @@ def test_resolve_chunk_cid_verify_failure_excludes_chunk_without_registering(
 def test_resolve_chunk_cid_get_document_connection_error_is_caught(
     mock_get_document, mock_upload_text, mock_verify_hash, mock_register_document
 ):
-    mock_get_document.side_effect = requests.exceptions.ConnectionError("node unreachable")
+    mock_get_document.side_effect = RegistryError("node unreachable")
 
     result = _resolve_chunk_cid(_RECORD, source_file="solar.txt", publisher_key=PUBLISHER_1_KEY)
 
@@ -156,7 +155,7 @@ def test_resolve_chunk_cid_register_document_contract_revert_is_caught(
     mock_get_document.return_value = {"is_registered": False}
     mock_upload_text.return_value = "QmFreshCID"
     mock_verify_hash.return_value = True
-    mock_register_document.side_effect = ContractLogicError("execution reverted")
+    mock_register_document.side_effect = RegistryError("execution reverted")
 
     result = _resolve_chunk_cid(_RECORD, source_file="solar.txt", publisher_key=PUBLISHER_1_KEY)
 
