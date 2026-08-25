@@ -40,6 +40,8 @@
 **Files:**
 - Modify: `blockchain/registry_client.py`
 - Test: `tests/test_blockchain_registry_client.py`
+- Modify: `scripts/ingest.py` — its `_resolve_chunk_cid()` catches raw `requests.exceptions.ConnectionError`/`ContractLogicError` around `get_document`/`register_document` today; once those raise `RegistryError` instead, that except clause stops catching anything real and chunk-level failures start propagating uncaught. Update it in the same task, since it's a direct, mechanical consequence of this task's own exception-wrapping change, not new work.
+- Modify: `tests/test_scripts_ingest.py` — the two tests that mock `get_document`/`register_document` to raise the raw exception types must mock `RegistryError` instead, so they keep testing a scenario the real client can actually produce.
 
 **Interfaces:**
 - Produces: `RegistryError(Exception)`, importable as `from blockchain.registry_client import RegistryError`. `register_document`, `update_reputation`, `verify_integrity`, `get_document` keep their existing signatures and return shapes; they now raise `RegistryError` instead of raw `requests`/`web3`/`FileNotFoundError` exceptions. `connect()` keeps its `-> tuple[Web3, Contract]` signature.
@@ -236,10 +238,92 @@ def get_document(doc_hash: str) -> dict:
 Run: `uv run pytest tests/test_blockchain_registry_client.py -v`
 Expected: all fast tests PASS (the `@pytest.mark.slow` tests remain skipped by default per `addopts = ["-m", "not slow"]`).
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Update scripts/ingest.py and its tests to catch RegistryError instead of the now-obsolete raw exception types**
+
+`scripts/ingest.py`'s `_resolve_chunk_cid()` currently catches `(IPFSError, requests.exceptions.ConnectionError, ContractLogicError)` around `get_document()`/`register_document()`. After Step 3, those functions raise `RegistryError` instead — the old except clause would silently stop catching anything real. Update the import line and the except clause. In `scripts/ingest.py`, change:
+
+```python
+import requests
+from web3.exceptions import ContractLogicError
+```
+
+(both lines — remove them; neither name is used anywhere else in the file) and change:
+
+```python
+from blockchain.registry_client import get_document, register_document
+```
+
+to:
+
+```python
+from blockchain.registry_client import RegistryError, get_document, register_document
+```
+
+and change:
+
+```python
+    except (IPFSError, requests.exceptions.ConnectionError, ContractLogicError) as exc:
+```
+
+to:
+
+```python
+    except (IPFSError, RegistryError) as exc:
+```
+
+In `tests/test_scripts_ingest.py`, remove the now-unused imports (neither name is used anywhere else in the file):
+
+```python
+import requests
+from web3.exceptions import ContractLogicError
+```
+
+and add `RegistryError` to the existing import from `blockchain.registry_client`, or add a new import line if none exists yet — check the file's current imports first, since it currently has no `blockchain.registry_client` import at all (it patches `scripts.ingest.get_document`/`scripts.ingest.register_document` instead):
+
+```python
+from blockchain.registry_client import RegistryError
+```
+
+Then update the two tests whose mocked side effects are now stale:
+
+```python
+def test_resolve_chunk_cid_get_document_connection_error_is_caught(
+    mock_get_document, mock_upload_text, mock_verify_hash, mock_register_document
+):
+    mock_get_document.side_effect = RegistryError("node unreachable")
+
+    result = _resolve_chunk_cid(_RECORD, source_file="solar.txt", publisher_key=PUBLISHER_1_KEY)
+
+    assert result is None
+    mock_upload_text.assert_not_called()
+    mock_register_document.assert_not_called()
+```
+
+```python
+def test_resolve_chunk_cid_register_document_contract_revert_is_caught(
+    mock_get_document, mock_upload_text, mock_verify_hash, mock_register_document
+):
+    mock_get_document.return_value = {"is_registered": False}
+    mock_upload_text.return_value = "QmFreshCID"
+    mock_verify_hash.return_value = True
+    mock_register_document.side_effect = RegistryError("execution reverted")
+
+    result = _resolve_chunk_cid(_RECORD, source_file="solar.txt", publisher_key=PUBLISHER_1_KEY)
+
+    assert result is None
+```
+
+Only the `@patch` decorators, function bodies, and imports change — leave the two functions' names, decorators, and every other test in the file untouched.
+
+- [ ] **Step 6: Run the full fast suite to verify no regressions**
+
+Run: `uv run pytest -v`
+Expected: all previously-passing tests still PASS, including `tests/test_scripts_ingest.py`'s full file (this exercises `_resolve_chunk_cid`'s other existing tests too, e.g. the `IPFSError` and unlisted-`KeyError`-propagation cases, which must be unaffected).
+
+- [ ] **Step 7: Commit**
 
 ```bash
-git add blockchain/registry_client.py tests/test_blockchain_registry_client.py
+git add blockchain/registry_client.py tests/test_blockchain_registry_client.py scripts/ingest.py tests/test_scripts_ingest.py
 git commit -m "feat: add RegistryError wrapping to blockchain/registry_client.py"
 ```
 
