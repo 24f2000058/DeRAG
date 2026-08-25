@@ -9,6 +9,10 @@ TEMPERATURE = 0.1
 MAX_NEW_TOKENS = 512
 
 
+class GenerationError(Exception):
+    pass
+
+
 def _ollama_host() -> str:
     return os.environ.get("OLLAMA_HOST", "http://localhost:11434")
 
@@ -47,13 +51,19 @@ def _request_body(prompt: str, stream: bool) -> dict:
 
 def generate_blocking(prompt: str) -> str:
     url = f"{_ollama_host()}/api/chat"
-    response = requests.post(url, json=_request_body(prompt, stream=False))
+    try:
+        response = requests.post(url, json=_request_body(prompt, stream=False))
+    except requests.exceptions.RequestException as exc:
+        raise GenerationError(f"could not reach Ollama at {url}: {exc}") from exc
     return response.json()["message"]["content"]
 
 
 def generate_streaming(prompt: str) -> Iterator[str]:
     url = f"{_ollama_host()}/api/chat"
-    response = requests.post(url, json=_request_body(prompt, stream=True), stream=True)
+    try:
+        response = requests.post(url, json=_request_body(prompt, stream=True), stream=True)
+    except requests.exceptions.RequestException as exc:
+        raise GenerationError(f"could not reach Ollama at {url}: {exc}") from exc
     for line in response.iter_lines():
         if not line:
             continue

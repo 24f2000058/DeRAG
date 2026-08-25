@@ -13,8 +13,9 @@ with the gemma4:12b model pulled. Start it, then run:
 from unittest.mock import Mock, patch
 
 import pytest
+import requests
 
-from generation.llm_client import build_prompt, generate_blocking, generate_streaming
+from generation.llm_client import GenerationError, build_prompt, generate_blocking, generate_streaming
 
 
 PLAIN_CONTEXT_DOCS = [
@@ -148,6 +149,26 @@ def test_generate_streaming_yields_text_chunks_from_mocked_ndjson_response():
     assert called_kwargs["json"]["stream"] is True
     assert called_kwargs["stream"] is True
     assert called_kwargs["json"]["think"] is False
+
+
+def test_generate_blocking_wraps_connection_error_in_generation_error():
+    with patch(
+        "generation.llm_client.requests.post",
+        side_effect=requests.exceptions.ConnectionError("could not connect"),
+    ):
+        with pytest.raises(GenerationError) as exc_info:
+            generate_blocking("hi")
+    assert isinstance(exc_info.value.__cause__, requests.exceptions.ConnectionError)
+
+
+def test_generate_streaming_wraps_connection_error_in_generation_error():
+    with patch(
+        "generation.llm_client.requests.post",
+        side_effect=requests.exceptions.ConnectionError("could not connect"),
+    ):
+        with pytest.raises(GenerationError) as exc_info:
+            list(generate_streaming("hi"))
+    assert isinstance(exc_info.value.__cause__, requests.exceptions.ConnectionError)
 
 
 @pytest.mark.slow
