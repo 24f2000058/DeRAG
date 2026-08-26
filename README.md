@@ -104,3 +104,45 @@ trust-weighted rankings side by side with:
 ```
 uv run python scripts/demo_rerank.py "your query text here"
 ```
+
+Milestone 7: local LLM generation (`generation/llm_client.py`) implemented
+and tested against a real, running Ollama instance — `build_prompt()`
+grounds the model in only the retrieved context (numbered `[1]`, `[2]`,
+`[3]` sources, whichever retrieval mode supplied them), and
+`generate_blocking()`/`generate_streaming()` call Ollama's `/api/chat`
+with `think: false` (required for the thinking model in use, `gemma4:12b`,
+to return real answer text instead of exhausting its token budget on
+hidden reasoning). Requires a running Ollama with `gemma4:12b` pulled —
+see `DECISIONS.md` for the systemd tuning needed to make that model usable
+without heavy CPU fallback. Compare a standard vs. trust-weighted answer
+side by side with:
+
+```
+ollama serve &
+uv run python scripts/demo_generate.py "your query text here"
+uv run python scripts/demo_generate.py "your query text here" --mode trust
+```
+
+Milestone 8: the Streamlit audit UI (`app/main.py`) implemented and
+verified live — a query box, a toggle between `"Standard RAG"` and
+`"DeRAG"` retrieval modes, a streamed answer with `[1]`/`[2]`/`[3]`
+citations, and an always-visible sidebar audit trail (up to 3 sources per
+query) with a persistent legend explaining its four verification states —
+**Hash match**, **Hash MISMATCH**, **Not checked** (registry responded but
+IPFS didn't), and **No registry record** (unregistered or the registry
+itself is unreachable). Each source row also shows a `Source [N]` marker
+matching its citation number in the answer text, and a mode-conditional
+"Ranking" line — the trust score in DeRAG mode, similarity alone in
+Standard RAG mode — so the retrieval-mode toggle visibly changes the
+sidebar, not just the answer. `app/ui_helpers.py` holds the pure,
+unit-tested logic (badge state machine, mode dispatch); `app/main.py`
+itself is Streamlit presentation code, verified through a real live
+walkthrough plus `streamlit.testing.v1.AppTest`-based regression tests
+(`tests/test_app_main.py`) rather than pure unit tests, since Streamlit
+scripts aren't otherwise testable in isolation. Run it with all four
+services up (Hardhat node, IPFS daemon, Ollama, and data already ingested
+via Milestone 5's `scripts/ingest.py`):
+
+```
+uv run streamlit run app/main.py
+```
