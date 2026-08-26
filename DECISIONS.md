@@ -583,3 +583,59 @@ later milestone next touches the relevant file.
   registered, which is a materially misleading story for a viva audience.
   Fixed by checking `is_registered` immediately after a successful
   `get_document()` call, before any `verify_hash()` attempt.
+
+## Milestone 8 Phase 2 — Design Polish (2026-08-26)
+
+- **`PRODUCT.md` added** via `impeccable init`, scoping the design pass to
+  `app/main.py`'s presentation layer only — `app/ui_helpers.py`'s logic,
+  signatures, and 100+ tests were explicitly locked and never touched
+  across either critique round below.
+- **Round 1 (audit → combined layout/colorize/typeset pass → critique,
+  19/36)**: rebuilt the badge system with real SVG icons (not emoji) in
+  four distinct silhouettes — check/triangle/circle/square — so the four
+  verification states don't rely on hue alone; a colored left-accent
+  border was tried for extra row-level differentiation but reverted after
+  `impeccable`'s mechanical detector flagged it as a banned "side-tab"
+  AI-tell pattern. Labels renamed from "Unverified"/"Unknown" (which read
+  backwards from plain English) to "Hash match"/"Hash MISMATCH"/"Not
+  checked"/"No registry record". Sidebar moved out of the
+  `if query_text:` conditional so it always renders, with a persistent
+  legend (built from the real badge component) and empty-state copy.
+- **Root cause surfaced by this round: `trust_weighted_rerank()`'s
+  computed `score`/`similarity`/`normalized_reputation` were discarded
+  before reaching the UI**, so the Standard RAG ↔ DeRAG toggle changed
+  the answer but nothing in the sidebar — the exact P0 finding. Fixed by
+  reading those fields directly off each `context_docs` entry in
+  `app/main.py` (no `ui_helpers.py` change needed) into a mode-conditional
+  "Ranking" line: the trust score plus its components in DeRAG mode,
+  similarity alone in Standard RAG mode.
+- **Round 2 critique (26/40) found a real, if narrow, correctness
+  question, not just a styling one**: whether the `[1]`/`[2]`/`[3]`
+  citation markers in the streamed answer reliably correspond to the
+  same-numbered sidebar row. Traced it: `build_prompt()` and the sidebar
+  loop both consume the same `context_docs` list, same order, no sort or
+  truncation in between — correct by construction today, but nothing on
+  screen showed that, and nothing guarded against a future change (e.g.
+  sorting rows by badge state) silently breaking it. Fixed on both
+  sides: a `Source [N]` marker now renders on each row, and
+  `tests/test_app_main.py` pins the invariant via a real
+  `streamlit.testing.v1.AppTest` run — confirmed the test actually
+  catches the regression by temporarily reversing the sidebar loop and
+  watching it fail before reverting.
+- **Two smaller Round 2 fixes**: the retrieval-mode radio now defaults to
+  DeRAG (`index=1`) instead of Standard RAG, since an unguided grader
+  (PRODUCT.md's named secondary audience) loading the page cold would
+  otherwise see the non-thesis mode first; and the badge label no longer
+  branches on an `"unreachable" in row["error"]` substring match into
+  `ui_helpers.py`'s locked exception wording — that produced a fifth,
+  untaught label ("Registry unreachable") the legend never explained, so
+  the badge now always reads one of the four taught states, with the
+  specific cause still shown verbatim in the diagnostic line beneath it.
+- **`app/main.py` remains untested by ordinary unit tests** (Streamlit
+  isn't unit-testable in the conventional sense), but Phase 2 established
+  `streamlit.testing.v1.AppTest` — Streamlit's own officially-supported
+  headless test runner — as the pattern going forward for anything in
+  this file worth pinning as a regression, alongside the live-walkthrough
+  verification Phase 1 already established. A hand-rolled websocket/
+  protobuf driver was tried first and abandoned (connected but received
+  zero `ForwardMsg`s, root cause not pursued) before landing on `AppTest`.
