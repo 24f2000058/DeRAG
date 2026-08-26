@@ -25,11 +25,9 @@ st.caption("Decentralized, Verifiable RAG with Trust-Weighted Ranking")
 # others." Each badge is a real icon (not emoji) in one consistent stroke,
 # with its own solid, WCAG-AA-passing color so it reads correctly
 # regardless of Streamlit's light/dark theme, and it leads its row instead
-# of trailing three lines of metadata. Rows also carry a state-colored left
-# accent so verified/error rows are distinguishable at a glance without
-# reading the badge text, and each state's icon is a distinct silhouette
-# (check / triangle / circle / square) so the states don't rely on hue
-# alone.
+# of trailing three lines of metadata. Each state's icon is a distinct
+# silhouette (check / triangle / circle / square) so the states don't rely
+# on hue alone.
 
 _ICONS = {
     "verified": (
@@ -91,6 +89,15 @@ _BADGE_CSS = """
     line-height: 1.6;
 }
 .derag-badge svg { width: 15px; height: 15px; flex: none; }
+.derag-source-marker {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    opacity: 0.55;
+    margin-bottom: 0.35rem;
+}
 .derag-badge--verified   { background: #15803d; }
 .derag-badge--unverified { background: #b91c1c; }
 .derag-badge--unknown    { background: #475569; }
@@ -186,15 +193,18 @@ def render_legend() -> None:
     st.markdown(f'<div class="derag-legend">{items}</div>', unsafe_allow_html=True)
 
 
-def render_audit_row(row: dict, ranking: dict | None = None) -> None:
+def _source_marker_html(ordinal: int) -> str:
+    return f'<div class="derag-source-marker">Source [{ordinal}]</div>'
+
+
+def render_audit_row(row: dict, ordinal: int, ranking: dict | None = None) -> None:
     doc_hash_short = html.escape(row["doc_hash_short"])
+    marker = _source_marker_html(ordinal)
 
     if "error" in row:
-        label = (
-            "Registry unreachable" if "unreachable" in row["error"] else _STATE_LABEL["error"]
-        )
         body = (
-            f'{_badge_html("error", label)}'
+            f'{marker}'
+            f'{_badge_html("error", _STATE_LABEL["error"])}'
             f'<div class="derag-hash">{doc_hash_short}</div>'
             f'<div class="derag-audit-diagnostic">{html.escape(row["error"])}</div>'
         )
@@ -220,9 +230,9 @@ def render_audit_row(row: dict, ranking: dict | None = None) -> None:
             if row["verified"] is None
             else ""
         )
-        body = f'{badge}<div class="derag-hash">{doc_hash_short}</div>{fields}{diagnostic}'
+        body = f'{marker}{badge}<div class="derag-hash">{doc_hash_short}</div>{fields}{diagnostic}'
 
-    st.markdown(f'<div class="derag-audit-row derag-audit-row--{state}">{body}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="derag-audit-row">{body}</div>', unsafe_allow_html=True)
 
 
 def _ranking_for(doc: dict, mode: str) -> dict:
@@ -242,7 +252,7 @@ def get_collection():
 
 
 query_text = st.text_input("Ask a question")
-mode = st.radio("Retrieval mode", [STANDARD_RAG_MODE, DERAG_MODE])
+mode = st.radio("Retrieval mode", [STANDARD_RAG_MODE, DERAG_MODE], index=1)
 
 context_docs = None
 
@@ -272,9 +282,11 @@ with st.sidebar:
     st.subheader("Audit trail")
     render_legend()
     if context_docs:
-        for doc in context_docs[:3]:
+        for ordinal, doc in enumerate(context_docs[:3], start=1):
             doc_hash = doc["metadata"]["doc_hash"]
-            render_audit_row(format_audit_row(doc_hash), ranking=_ranking_for(doc, mode))
+            render_audit_row(
+                format_audit_row(doc_hash), ordinal, ranking=_ranking_for(doc, mode)
+            )
     else:
         st.markdown(
             '<div class="derag-empty-state">Ask a question above to see the audit trail '
