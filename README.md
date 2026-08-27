@@ -146,3 +146,16 @@ via Milestone 5's `scripts/ingest.py`):
 ```
 uv run streamlit run app/main.py
 ```
+
+Milestone 9: a real demo corpus (`data/demo_corpus/`) of 50 real SciFact
+abstracts (leading-sentence excerpts, one chunk each) plus 3 fabricated
+`FABRICATED_MISINFO_*` chunks that invert a real causal finding.
+`scripts/build_demo_corpus.py` regenerates it deterministically;
+`scripts/seed_reputation.py` ingests each file with a curated Hardhat
+publisher key and idempotently seeds on-chain reputation (poison -50,
+targeted legitimate sources +10, filler 0);
+`scripts/check_candidate_window.py` is the spec's pre-flight check. The
+thesis is pinned by `tests/test_demo_corpus_regression.py` (`-m slow`):
+against live Hardhat + IPFS + Chroma, Standard RAG's top-1 for the
+red-meat/TMAO query is the fabricated chunk while DeRAG's top-1 is the
+real abstract. See `DEMO.md` for the scripted walkthrough.

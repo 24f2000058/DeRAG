@@ -639,3 +639,122 @@ later milestone next touches the relevant file.
   verification Phase 1 already established. A hand-rolled websocket/
   protobuf driver was tried first and abandoned (connected but received
   zero `ForwardMsg`s, root cause not pursued) before landing on `AppTest`.
+
+## Milestone 9 — Real Demo Corpus & Thesis-Proof Regression Test (2026-08-27)
+
+- **Dataset: SciFact over Climate-FEVER.** SciFact (`allenai/scifact`,
+  CC-BY-NC-2.0) pairs a short `claim` with a peer-reviewed `abstract`,
+  which matches the assignment's "Class 1: Peer-reviewed abstracts or
+  verified claims" wording directly — Climate-FEVER's Wikipedia-sentence
+  evidence does not. Downloaded from the S3 release archive
+  (`https://scifact.s3-us-west-2.amazonaws.com/release/latest/data.tar.gz`)
+  because the HF dataset viewer runs custom loader code and is
+  unavailable. `scripts/build_demo_corpus.py` regenerates the corpus
+  deterministically (byte-identical `manifest.json` across runs), caching
+  the archive under git-ignored `data/.scifact_cache/`.
+- **Size: 53 chunks** — 47 filler + 3 poison-targeted legit + 3
+  fabricated. Deliberately near the low end of the 50–100 MVP cap:
+  every chunk costs a live IPFS upload plus a Hardhat transaction during
+  seeding, and the per-chunk reputation-demotion mechanism is
+  corpus-size-independent, so a bigger corpus buys nothing for the thesis
+  proof.
+- **Single-chunk constraint, and an honest deviation from the plan's
+  filter.** `pipeline/chunking.py` splits any text >500 chars and
+  `seed_reputation.resolve_doc_hash` requires exactly one chunk per file,
+  so every corpus file must fit a single chunk. The plan's `eligible()`
+  filter gated its ≤480-char check on the RAW SciFact abstract — but real
+  SciFact abstracts run 600–2000 chars (the shortest in the eligible pool
+  was 617), so the literal filter matched ZERO documents. Resolution
+  (controller-ratified): `eligible()` now gates on
+  `fit_to_single_chunk(abstract_text(entry))`, and `build_demo_corpus.py`
+  stores every abstract — all 47 filler AND the 3 poison-targeted legit —
+  as a **leading-sentence excerpt truncated to ≤480 chars**, not the
+  complete abstract. `MAX_CHUNK_CHARS` stayed 480 and the sentence-count
+  filter stayed 4–8 sentences (168 docs eligible; 47 filler selected
+  deterministically by lowest SciFact claim id, then sorted by
+  `chunk_id`). Consequence: the spec's "50 unmodified abstracts" are in
+  practice 50 truncated leading-sentence excerpts of real abstracts — a
+  deliberate trade to preserve the single-chunk invariant without raising
+  `chunk_size` system-wide. Controller-verified: all 50 legit `.txt`
+  files yield exactly one chunk from `ingest_prep`.
+- **Poison design.** 3 real SciFact claims adversarially inverted — the
+  causal conclusion flipped while named entities and statistical framing
+  are kept. Files carry the `FABRICATED_MISINFO_` prefix, are flagged
+  `"is_poisoned": true` in `manifest.json`, and publish from Account #5.
+  The H. pylori poison was trimmed (trailing advice sentence dropped,
+  558→411 chars) to fit ≤480; the antibiotics (461 chars) and TMAO
+  (470 chars) poisons are verbatim from the spec's §2b/§2c drafts.
+- **Final query strings** — all natural language, none reworded in the
+  final state (an early antibiotics reword was reverted after review):
+  - TMAO: `Does dietary L-carnitine from red meat raise TMAO and accelerate atherosclerosis?`
+  - Antibiotics: `Do antibiotics increase susceptibility to Clostridium difficile infection?`
+  - H. pylori: `Does H. pylori infection increase the risk of gastric cancer?`
+- **Measured cosine similarity** (MiniLM `all-MiniLM-L6-v2`, query vs the
+  truncated corpus files):
+  - **TMAO — poison 0.779 vs legit 0.581** (poison wins by 0.198). The
+    load-bearing case: the only query where Standard RAG's top-1 is the
+    fabricated chunk.
+  - Antibiotics — poison 0.709 vs legit 0.733 (legit wins by 0.024).
+    Direction is OPPOSITE spec §2b's full-abstract measurement
+    (0.7104 > 0.7074) because the legit file is now a truncated excerpt.
+    Non-load-bearing.
+  - H. pylori — poison 0.802 vs legit 0.756 (poison wins by 0.046).
+    Direction is OPPOSITE spec §2a's full-abstract measurement
+    (legit 0.830 > poison 0.803), same truncation cause. Non-load-bearing.
+  - Why the flips: truncating legit abstracts to their leading
+    OBJECTIVE/DESIGN sentences (results and conclusion removed) lowers
+    their similarity to a results-oriented question; spec §2's numbers
+    were whole-abstract. Handling: `tests/test_demo_corpus_regression.py`
+    hard-asserts only the TMAO parametrization; the antibiotics
+    parametrization is `pytest.mark.xfail(strict=False)`, and
+    `tests/test_demo_corpus_fixtures.py` records the H. pylori and
+    antibiotics similarity directions rather than asserting the spec-§2
+    direction.
+- **Reputation seeding reuses Milestone 6 magnitudes.** `manifest.json`
+  stores an absolute `target_reputation` per chunk — poison `-50`,
+  poison-targeted legit `+10`, filler `0` (Milestone 6's validated
+  synthetic magnitudes). `scripts/seed_reputation.py` reads the current
+  on-chain reputation via `get_document` and applies
+  `delta = target - current`, skipping any chunk already at target.
+  Verified idempotent and resumable: on both full runs the 47 filler
+  chunks were `[seed] skip` (already at 0, zero transactions) and only
+  the 6 non-zero-target chunks were written.
+- **Publisher scheme.** Filler → Hardhat Account #1; the 3
+  poison-targeted legit sources → Account #2; the 3 fabricated chunks →
+  Account #5; reputation oracle → Account #0 (the deploy-time
+  auto-authorized oracle). Hardhat deterministic default test keys.
+  Publisher assignment is demo-narrative only — `trust_weighted_rerank`
+  never reads `publisher`.
+- **Candidate-window pre-flight (spec §3a): `[preflight] PASS` on both
+  fresh runs.** For all three target queries (TMAO, antibiotics,
+  H. pylori) BOTH the poison chunk and its ground-truth legit counterpart
+  appeared in `vector_store.query(q, k=10)`. `k_retrieve` did NOT need to
+  be raised — stayed at 10.
+- **Ranking constants: NOT retuned.** `retrieval/rerank.py` `SCALE=10`,
+  `FLOOR_PENALTY=50`, default `alpha=0.7` unchanged. The spec's
+  hypothesis ("no blind tuning needed") held against the real corpus.
+- **Two fresh full-pipeline runs (Definition of Done).**
+  - Run 1: fresh contract deploy + wiped Chroma → seed →
+    `[preflight] PASS` →
+    `uv run pytest -m slow tests/test_demo_corpus_regression.py` =
+    **2 passed, 1 xfailed**
+    (`test_standard_rag_top1_is_poison_but_trust_weighted_top1_is_not[poison_tmao_redmeat_neutral]`
+    PASSED, `[poison_antibiotics_cdiff_protective]` XFAIL,
+    `test_trust_weighted_ranks_tmao_legit_counterpart_above_its_poison`
+    PASSED).
+  - Run 2: Hardhat node killed + restarted (fresh in-memory chain) +
+    re-deployed + wiped Chroma + re-seeded → identical:
+    `[preflight] PASS`, 2 passed / 1 xfailed.
+  - TMAO ranking flip (from `demo_rerank`): Standard RAG #1 =
+    `FABRICATED_MISINFO_tmao_redmeat_neutral.txt` (sim 0.7789) ahead of
+    `scifact_14803797_tmao_redmeat.txt` (sim 0.5806); trust-weighted
+    rerank #1 = `scifact_14803797_tmao_redmeat.txt` (hybrid score
+    0.6257), fabricated chunk demoted to #2 (score 0.5473).
+- **Two operational notes.** `scripts/seed_reputation.py` and the slow
+  regression test read `os.environ` directly (matching the existing
+  `scripts/` convention — `ingest.py`, `demo_rerank.py` do the same), so
+  the operator must export `.env` before running them; `DEMO.md`
+  documents this. Separately, `scripts/demo_rerank.py` (a pre-existing
+  Milestone 6 script) lacks the `sys.path` bootstrap the other scripts
+  have, so it must be run as `python -m scripts.demo_rerank`; left as-is
+  (out of Milestone 9 scope), and `DEMO.md` uses the module form.
