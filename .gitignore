@@ -30,3 +30,6 @@ data/*
 .claude/settings.local.json
 .claude-mem/
 *.claude-mem.db
+
+# SDD scratch workspace (ledger, briefs, review packages) — not project artifacts
+.superpowers/
