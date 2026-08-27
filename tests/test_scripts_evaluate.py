@@ -1,6 +1,3 @@
-import json
-from pathlib import Path
-
 import pytest
 
 from scripts.evaluate import (
@@ -96,3 +93,92 @@ def test_gather_cases_uses_real_committed_manifest():
         assert c["gt_doc_id"].isdigit()
         assert c["poison_file"].startswith("FABRICATED_MISINFO_")
         assert c["legit_file"].startswith("scifact_")
+
+
+from scripts.evaluate import (  # noqa: E402
+    ALPHA_SANITY_NOTE,
+    FRAMING_HEADLINE,
+    NARRATIVE_ANTIBIOTICS,
+    NARRATIVE_HPYLORI,
+    NARRATIVE_TMAO,
+    render_results_md,
+)
+
+_RESULTS = {
+    "alphas": [0.0, 0.3, 0.5, 0.7, 1.0],
+    "per_query": [
+        {"label": "TMAO / red meat", "query": "Q1", "gt_doc_id": "14803797",
+         "poison_file": "FABRICATED_MISINFO_tmao_redmeat_neutral.txt",
+         "legit_file": "scifact_14803797_tmao_redmeat.txt",
+         "standard": {"rr": 0.5, "p_at_1": 0.0, "p_at_3": 1 / 3},
+         "derag": {"rr": 1.0, "p_at_1": 1.0, "p_at_3": 1 / 3},
+         "standard_dump": ["FABRICATED_MISINFO_tmao_redmeat_neutral.txt", "scifact_14803797_tmao_redmeat.txt"],
+         "derag_dump": ["scifact_14803797_tmao_redmeat.txt", "FABRICATED_MISINFO_tmao_redmeat_neutral.txt"]},
+        {"label": "H. pylori / gastric cancer", "query": "Q2", "gt_doc_id": "2052720",
+         "poison_file": "FABRICATED_MISINFO_hpylori_protective.txt",
+         "legit_file": "scifact_2052720_hpylori_gastric_cancer.txt",
+         "standard": {"rr": 0.5, "p_at_1": 0.0, "p_at_3": 1 / 3},
+         "derag": {"rr": 1.0, "p_at_1": 1.0, "p_at_3": 1 / 3},
+         "standard_dump": ["FABRICATED_MISINFO_hpylori_protective.txt", "scifact_2052720_hpylori_gastric_cancer.txt"],
+         "derag_dump": ["scifact_2052720_hpylori_gastric_cancer.txt", "FABRICATED_MISINFO_hpylori_protective.txt"]},
+        {"label": "antibiotics / C. difficile", "query": "Q3", "gt_doc_id": "6372244",
+         "poison_file": "FABRICATED_MISINFO_antibiotics_cdiff_protective.txt",
+         "legit_file": "scifact_6372244_antibiotics_cdiff.txt",
+         "standard": {"rr": 1.0, "p_at_1": 1.0, "p_at_3": 1 / 3},
+         "derag": {"rr": 1.0, "p_at_1": 1.0, "p_at_3": 1 / 3},
+         "standard_dump": ["scifact_6372244_antibiotics_cdiff.txt", "FABRICATED_MISINFO_antibiotics_cdiff_protective.txt"],
+         "derag_dump": ["scifact_6372244_antibiotics_cdiff.txt", "FABRICATED_MISINFO_antibiotics_cdiff_protective.txt"]},
+    ],
+    "sweep": [
+        {"alpha": 0.0, "mrr": 0.55, "mean_p_at_1": 0.33},
+        {"alpha": 0.3, "mrr": 1.0, "mean_p_at_1": 1.0},
+        {"alpha": 0.5, "mrr": 1.0, "mean_p_at_1": 1.0},
+        {"alpha": 0.7, "mrr": 1.0, "mean_p_at_1": 1.0},
+        {"alpha": 1.0, "mrr": 0.667, "mean_p_at_1": 0.667},
+    ],
+}
+
+
+def test_render_results_md_carries_the_framing_prose():
+    md = render_results_md(_RESULTS)
+    # not just tables — the rhetorical framing must survive templating
+    assert FRAMING_HEADLINE in md
+    assert NARRATIVE_TMAO in md
+    assert NARRATIVE_HPYLORI in md
+    assert NARRATIVE_ANTIBIOTICS in md
+    assert ALPHA_SANITY_NOTE in md
+
+
+def test_render_results_md_framing_constants_say_the_right_things():
+    # guard the constants themselves so an edit can't hollow them out
+    assert "two-positive" in FRAMING_HEADLINE and "one-honest-negative" in FRAMING_HEADLINE
+    assert "0.198" in NARRATIVE_TMAO
+    assert "0.046" in NARRATIVE_HPYLORI and "robustness" in NARRATIVE_HPYLORI
+    assert "no-regression" in NARRATIVE_ANTIBIOTICS
+    assert "1.0" in ALPHA_SANITY_NOTE and "similarity" in ALPHA_SANITY_NOTE
+
+
+def test_render_results_md_has_tables_and_dumps():
+    md = render_results_md(_RESULTS)
+    assert "| TMAO / red meat |" in md
+    assert "| H. pylori / gastric cancer |" in md
+    assert "| antibiotics / C. difficile |" in md
+    assert "Alpha sweep" in md
+    assert "0.7" in md and "shipped default" in md
+    # raw ranking dumps present for auditability
+    assert "scifact_14803797_tmao_redmeat.txt" in md
+    assert "uv run python scripts/evaluate.py" in md
+
+
+def test_render_results_md_plateau_reading_reacts_to_data():
+    wide = render_results_md(_RESULTS)  # 0.3/0.5/0.7 all tie at max MRR
+    assert "plateau" in wide.lower()
+    knife = dict(_RESULTS)
+    knife["sweep"] = [
+        {"alpha": 0.0, "mrr": 0.4, "mean_p_at_1": 0.33},
+        {"alpha": 0.3, "mrr": 0.5, "mean_p_at_1": 0.33},
+        {"alpha": 0.5, "mrr": 0.6, "mean_p_at_1": 0.33},
+        {"alpha": 0.7, "mrr": 1.0, "mean_p_at_1": 1.0},
+        {"alpha": 1.0, "mrr": 0.6, "mean_p_at_1": 0.33},
+    ]
+    assert "sensitive" in render_results_md(knife).lower()
