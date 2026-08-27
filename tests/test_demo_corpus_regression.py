@@ -2,7 +2,10 @@
 
 Against the REAL demo corpus and REAL running services, Standard RAG's
 top-1 result for a real query is a poisoned chunk, while
-trust_weighted_rerank's top-1 is not.
+trust_weighted_rerank's top-1 is not. Two queries carry this as a hard
+assertion (TMAO/red-meat and H. pylori/gastric-cancer); the antibiotics
+query does not fool Standard RAG under its natural wording and is xfail
+on the Standard-RAG half only.
 
 Requires, all live at once:
   - npx hardhat node  +  contracts/scripts/deploy.ts   (WEB3_PROVIDER_URI, PRIVATE_KEY)
@@ -30,7 +33,11 @@ def _cases():
     chunks = json.loads((CORPUS_DIR / "manifest.json").read_text())["chunks"]
     by_id = {c["chunk_id"]: c for c in chunks}
     out = {}
-    for chunk_id in ("poison_tmao_redmeat_neutral", "poison_antibiotics_cdiff_protective"):
+    for chunk_id in (
+        "poison_tmao_redmeat_neutral",
+        "poison_hpylori_protective",
+        "poison_antibiotics_cdiff_protective",
+    ):
         poison = by_id[chunk_id]
         legit = by_id[poison["ground_truth_chunk_id"]]
         out[chunk_id] = (poison["target_queries"][0], poison["filename"], legit["filename"])
@@ -53,6 +60,7 @@ _ANTIBIOTICS_STANDARD_RAG_XFAIL = pytest.mark.xfail(
 @pytest.mark.slow
 @pytest.mark.parametrize("case_id", [
     "poison_tmao_redmeat_neutral",
+    "poison_hpylori_protective",
     pytest.param("poison_antibiotics_cdiff_protective", marks=_ANTIBIOTICS_STANDARD_RAG_XFAIL),
 ])
 def test_standard_rag_top1_is_the_poison_chunk(case_id):
@@ -68,6 +76,7 @@ def test_standard_rag_top1_is_the_poison_chunk(case_id):
 @pytest.mark.slow
 @pytest.mark.parametrize("case_id", [
     "poison_tmao_redmeat_neutral",
+    "poison_hpylori_protective",
     "poison_antibiotics_cdiff_protective",
 ])
 def test_trust_weighted_top1_is_not_a_poison_chunk(case_id):
@@ -80,11 +89,15 @@ def test_trust_weighted_top1_is_not_a_poison_chunk(case_id):
 
 
 @pytest.mark.slow
-def test_trust_weighted_ranks_tmao_legit_counterpart_above_its_poison():
-    query_text, poison_file, legit_file = CASES["poison_tmao_redmeat_neutral"]
+@pytest.mark.parametrize("case_id", [
+    "poison_tmao_redmeat_neutral",
+    "poison_hpylori_protective",
+])
+def test_trust_weighted_ranks_legit_counterpart_above_its_poison(case_id):
+    query_text, poison_file, legit_file = CASES[case_id]
     trust_hits = trust_weighted_rerank(query_text, k_retrieve=10, k_return=10)
     order = [hit["metadata"]["source_file"] for hit in trust_hits]
     assert poison_file in order and legit_file in order, (
-        f"one of the TMAO pair fell outside the top-10 candidate window: {order}"
+        f"{case_id}: one of the pair fell outside the top-10 candidate window: {order}"
     )
     assert order.index(legit_file) < order.index(poison_file)

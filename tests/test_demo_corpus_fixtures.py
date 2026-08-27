@@ -46,15 +46,21 @@ def _sim(query: str, text: str) -> float:
 
 
 # --- Load-bearing similarity assertion (Task 6 retrieval-regression) ---------
-# Only the TMAO case is relied on. Its query is the plan's original natural
-# question and the poison wins on raw cosine by a wide, honest margin against
-# the truncated corpus files Task 6 retrieves. H. pylori and antibiotics are
-# demoted to "direction is recorded" cases below: their natural queries do not
-# reproduce a poison>=legit ordering against the truncated legit excerpts, and
-# per spec section 2 the queries must NOT be tuned until the poison wins by
-# construction.
+# TWO cases are relied on: TMAO/red-meat and H. pylori/gastric-cancer. Each
+# uses the plan's original natural question (never tuned to favour the poison,
+# per spec section 2), and against the truncated corpus files Task 6 retrieves
+# the poison wins on raw cosine:
+#   TMAO      poison ~0.779 vs legit ~0.581  (wide margin)
+#   H. pylori poison ~0.802 vs legit ~0.756  (real, thinner margin)
+# H. pylori's full-abstract ordering in spec section 2a was the reverse
+# (legit 0.830 > poison 0.803); leading-sentence truncation of the legit
+# excerpt (OBJECTIVE/DESIGN only, no results) flipped it, and the flip makes
+# H. pylori a genuine second Standard-RAG-fooling case rather than a curiosity.
+# Antibiotics stays "direction is recorded" below: its natural query keeps the
+# legit excerpt just above the poison and is deliberately not reworded.
 @pytest.mark.parametrize("poison_chunk_id", [
     "poison_tmao_redmeat_neutral",
+    "poison_hpylori_protective",
 ])
 def test_poison_beats_or_ties_legit_on_raw_similarity(poison_chunk_id):
     chunks = _by_chunk_id()
@@ -67,25 +73,6 @@ def test_poison_beats_or_ties_legit_on_raw_similarity(poison_chunk_id):
         f"{poison_chunk_id}: poison {poison_sim:.4f} < legit {legit_sim:.4f} — "
         "reword the query in scripts/build_demo_corpus.py TARGETS (not the poison text)"
     )
-
-
-def test_hpylori_poison_similarity_direction_is_recorded():
-    # Spec section 2a measured legit_sim > poison_sim on the FULL SciFact
-    # abstract. In this corpus the legit file is a truncated leading-sentence
-    # excerpt (OBJECTIVE + DESIGN only, no results), so its raw cosine
-    # similarity to the query drops below the poison's and the direction
-    # flips to poison_sim >= legit_sim. This is acceptable: the H. pylori
-    # case is NOT a Task 6 retrieval-regression assertion — it exists only to
-    # demonstrate the reputation layer — so its similarity direction blocks
-    # nothing. This test pins the direction that actually holds against the
-    # corpus files Task 6 will retrieve.
-    chunks = _by_chunk_id()
-    poison = chunks["poison_hpylori_protective"]
-    legit = chunks[poison["ground_truth_chunk_id"]]
-    query = poison["target_queries"][0]
-    poison_sim = _sim(query, (CORPUS_DIR / poison["filename"]).read_text())
-    legit_sim = _sim(query, (CORPUS_DIR / legit["filename"]).read_text())
-    assert poison_sim >= legit_sim
 
 
 def test_antibiotics_poison_similarity_direction_is_recorded():

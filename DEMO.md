@@ -18,7 +18,10 @@ consults each chunk's **on-chain reputation** — seeded to **-50** for the
 the same topics — and re-ranks. The trust-weighted score demotes the
 fabrication to **#2** and promotes the real abstract to **#1**. Same
 retrieval set, same embeddings, different final order — and the
-difference is the blockchain reputation signal.
+difference is the blockchain reputation signal. A **second query** — *"Does
+H. pylori infection increase the risk of gastric cancer?"* — shows the
+same flip on a different topic and is asserted the same way, so the proof
+does not hang on one query.
 
 ## Prerequisites (3 long-running terminals + 1 one-shot deploy)
 
@@ -125,20 +128,49 @@ What to narrate to the panel:
   **#1**. The retrieval set and embeddings are identical between the two
   lists — only the reputation term changed the order.
 
-### The other two fabricated chunks
+### Second fooling case: H. pylori / gastric cancer
 
-`FABRICATED_MISINFO_antibiotics_cdiff_protective.txt` (query:
-*"Do antibiotics increase susceptibility to Clostridium difficile
-infection?"*) and `FABRICATED_MISINFO_hpylori_protective.txt` (query:
-*"Does H. pylori infection increase the risk of gastric cancer?"*) are
-**also in the corpus and reputation-seeded to -50** (their legitimate
-counterparts `scifact_6372244_antibiotics_cdiff.txt` and
-`scifact_2052720_hpylori_gastric_cancer.txt` are seeded to +10). They are
-**secondary**. With their natural queries the real abstract already
-outranks the fabrication on similarity alone, so Standard RAG is *not*
-fooled there — do not expect those poison chunks at #1 under Standard RAG.
-**Only the TMAO query is the headline case** (largest similarity margin
-for the fabrication). See `DECISIONS.md` for why only TMAO is load-bearing.
+`FABRICATED_MISINFO_hpylori_protective.txt` (query: *"Does H. pylori
+infection increase the risk of gastric cancer?"*, legitimate counterpart
+`scifact_2052720_hpylori_gastric_cancer.txt`, seeded +10) is a **second
+query where Standard RAG is fooled and DeRAG recovers**, asserted the
+same way as TMAO in the automated proof. The similarity margin is
+thinner than TMAO's but real.
+
+```bash
+uv run python -m scripts.demo_rerank "Does H. pylori infection increase the risk of gastric cancer?"
+```
+
+```
+Standard RAG (pure cosine similarity) — query: 'Does H. pylori infection increase the risk of gastric cancer?'
+1. FABRICATED_MISINFO_hpylori_protective.txt (similarity=0.8020)
+2. scifact_2052720_hpylori_gastric_cancer.txt (similarity=0.7558)
+3. scifact_6372244_antibiotics_cdiff.txt (similarity=0.3965)
+
+Trust-Weighted Rerank — query: 'Does H. pylori infection increase the risk of gastric cancer?'
+1. scifact_2052720_hpylori_gastric_cancer.txt (similarity=0.7558, score=0.7484)
+2. FABRICATED_MISINFO_hpylori_protective.txt (similarity=0.8020, score=0.5634)
+3. scifact_6372244_antibiotics_cdiff.txt (similarity=0.3965, score=0.4969)
+```
+
+Standard RAG ranks the fabrication **#1** (0.8020 vs the real abstract's
+0.7558); the -50 reputation drags the fabrication's trust score to 0.5634
+while the +10 lifts the real abstract to 0.7484, so DeRAG puts the real
+abstract **#1** and the fabrication **#2**.
+
+### Deliberate contrast: the antibiotics chunk is *not* a fooling case
+
+`FABRICATED_MISINFO_antibiotics_cdiff_protective.txt` (query: *"Do
+antibiotics increase susceptibility to Clostridium difficile
+infection?"*, counterpart `scifact_6372244_antibiotics_cdiff.txt`) is
+also in the corpus and seeded to -50, but under its natural question the
+real abstract already outranks the fabrication on similarity alone
+(0.7329 vs 0.7092) — **Standard RAG is not fooled here**, so do not
+expect this poison chunk at #1 under Standard RAG. This is the honest
+boundary of the attack: a fabrication only wins retrieval when it is
+lexically closer than the truth, and DeRAG's job is to catch it when it
+is. DeRAG still (correctly) keeps the real abstract at #1. See
+`DECISIONS.md`.
 
 ## Streamlit UI walkthrough
 
@@ -178,19 +210,24 @@ uv run python scripts/check_candidate_window.py     # sanity: [preflight] PASS
 uv run pytest -m slow tests/test_demo_corpus_regression.py -v
 ```
 
-Expected result: **`2 passed, 1 xfailed`**.
+Expected result: **`7 passed, 1 xfailed`** (8 items).
 
-- `test_..._poison_tmao_redmeat_neutral` — asserts that Standard RAG
-  ranks the fabricated TMAO chunk #1 **and** that trust-weighted
-  re-ranking flips the real abstract above it. **Passes.**
-- `test_..._poison_antibiotics_cdiff_protective` — **`xfail`**
-  (deliberately non-load-bearing; Standard RAG is not fooled by the
-  antibiotics fabrication under its natural query — see `DECISIONS.md`).
-- `test_trust_weighted_ranks_tmao_legit_counterpart_above_its_poison` —
-  asserts the real TMAO abstract outranks its fabrication after
-  re-ranking. **Passes.**
+- `test_standard_rag_top1_is_the_poison_chunk` — for **TMAO** and
+  **H. pylori** asserts Standard RAG's top-1 is the fabricated chunk
+  (**both pass**); for **antibiotics** it is `xfail` (Standard RAG is
+  deliberately not fooled by that fabrication under its natural query —
+  see `DECISIONS.md`).
+- `test_trust_weighted_top1_is_not_a_poison_chunk` — for all three
+  queries asserts DeRAG's top-1 is **not** a fabricated chunk. **All
+  pass** (including antibiotics, where DeRAG keeps the already-correct
+  order).
+- `test_trust_weighted_ranks_legit_counterpart_above_its_poison` — for
+  **TMAO** and **H. pylori** asserts the real abstract outranks its
+  fabrication after re-ranking. **Both pass.**
 
-The controller has run the full pipeline from clean state twice — fresh
-Hardhat chain → deploy → wipe Chroma → seed → pre-flight → this test —
-and both runs were green with the ranking constants unchanged
-(`SCALE = 10`, `FLOOR_PENALTY = 50`, `alpha = 0.7`).
+The two hard fooling cases (TMAO, H. pylori) are independent: the proof
+does not rest on a single query having a good day. The full pipeline has
+been run from clean state — fresh Hardhat chain → deploy → wipe Chroma →
+seed → pre-flight → this test — three times (twice at two hard cases,
+once after H. pylori was promoted), always green, with the ranking
+constants unchanged (`SCALE = 10`, `FLOOR_PENALTY = 50`, `alpha = 0.7`).
