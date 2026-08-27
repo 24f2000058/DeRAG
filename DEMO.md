@@ -20,23 +20,28 @@ fabrication to **#2** and promotes the real abstract to **#1**. Same
 retrieval set, same embeddings, different final order — and the
 difference is the blockchain reputation signal.
 
-## Prerequisites (4 terminals)
+## Prerequisites (3 long-running terminals + 1 one-shot deploy)
 
-Run each in its own terminal from the repo root and leave it running:
+Steps 1, 3, and 4 are long-running — start each in its own terminal from
+the repo root and leave it running. Step 2 is a one-shot command that
+deploys and then exits; run it once (in any terminal) after step 1 is up.
 
 1. `cd contracts && npx hardhat node`
-   Starts a fresh local chain. It prints 20 funded accounts; **Account #0**
-   is the reputation oracle used by the seeding script.
+   Starts a fresh local chain. Long-running — leave it up. It prints 20
+   funded accounts; **Account #0** is the reputation oracle used by the
+   seeding script.
 2. `cd contracts && npx hardhat run scripts/deploy.ts --network localhost`
-   Deploys the DeRAG contracts to the local chain. Confirm the deployed
+   Run once — this deploys the DeRAG contracts to the local chain and
+   exits; it is **not** a long-running process. Confirm the deployed
    addresses match what the Python config expects (`config.py` /
    `deployments/`).
 3. `ipfs daemon`
-   Chunk bodies are stored on IPFS; the API must be reachable at the
-   `IPFS_API_URL` in `.env`.
+   Long-running — leave it up. Chunk bodies are stored on IPFS; the API
+   must be reachable at the `IPFS_API_URL` in `.env`.
 4. `ollama serve`
-   Only needed for the Streamlit answer-generation step. The CLI
-   walkthrough and the automated proof do **not** need Ollama.
+   Long-running — leave it up. Only needed for the Streamlit
+   answer-generation step. The CLI walkthrough and the automated proof do
+   **not** need Ollama.
 
 With the default Hardhat mnemonic, Account #0's private key is
 `0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80`

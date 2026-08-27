@@ -1,3 +1,8 @@
+import json as _json
+
+import pytest
+
+from scripts import build_demo_corpus
 from scripts.build_demo_corpus import (
     POISON,
     TARGETS,
@@ -110,14 +115,6 @@ def test_build_manifest_poison_entries_point_at_ground_truth():
 def test_targets_and_poison_constants_are_consistent():
     assert set(TARGETS) == {2052720, 6372244, 14803797}
     assert {p["target_doc_id"] for p in POISON.values()} == set(TARGETS)
-
-
-import json as _json
-from pathlib import Path as _Path
-
-import pytest
-
-from scripts import build_demo_corpus
 
 
 @pytest.mark.slow

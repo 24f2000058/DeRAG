@@ -47,3 +47,17 @@ def test_check_fails_when_ground_truth_missing_from_top_k(tmp_path):
         "FABRICATED_MISINFO_tmao_redmeat_neutral.txt", "scifact_2_y.txt",
     ])):
         assert check(corpus_dir=tmp_path, k=10) == 1
+
+
+def test_check_fails_when_no_poisoned_entry_with_target_queries(tmp_path):
+    chunks = [
+        {"filename": "scifact_1_a.txt", "chunk_id": "scifact_1_a", "is_poisoned": False,
+         "publisher_key": "PUBLISHER_1_KEY", "target_reputation": 0,
+         "target_queries": [], "ground_truth_chunk_id": None},
+        {"filename": "scifact_2_b.txt", "chunk_id": "scifact_2_b", "is_poisoned": False,
+         "publisher_key": "PUBLISHER_1_KEY", "target_reputation": 0,
+         "target_queries": [], "ground_truth_chunk_id": None},
+    ]
+    (tmp_path / "manifest.json").write_text(json.dumps({"chunks": chunks}))
+    with patch("scripts.check_candidate_window.query", return_value=_hits([])):
+        assert check(corpus_dir=tmp_path, k=10) == 1

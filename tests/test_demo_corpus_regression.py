@@ -40,24 +40,23 @@ def _cases():
 CASES = _cases()
 
 
+_ANTIBIOTICS_STANDARD_RAG_XFAIL = pytest.mark.xfail(
+    reason=(
+        "M9: SciFact abstract truncation (see DECISIONS.md) makes the natural "
+        "antibiotics query rank the legitimate chunk above the poison on raw "
+        "similarity; non-load-bearing — TMAO is the Standard-RAG-fooled proof."
+    ),
+    strict=False,
+)
+
+
 @pytest.mark.slow
 @pytest.mark.parametrize("case_id", [
     "poison_tmao_redmeat_neutral",
-    pytest.param(
-        "poison_antibiotics_cdiff_protective",
-        marks=pytest.mark.xfail(
-            reason=(
-                "M9: SciFact abstract truncation (see DECISIONS.md) makes the "
-                "natural antibiotics query rank the legitimate chunk above the "
-                "poison; non-load-bearing — the TMAO case is the thesis proof."
-            ),
-            strict=False,
-        ),
-    ),
+    pytest.param("poison_antibiotics_cdiff_protective", marks=_ANTIBIOTICS_STANDARD_RAG_XFAIL),
 ])
-def test_standard_rag_top1_is_poison_but_trust_weighted_top1_is_not(case_id):
+def test_standard_rag_top1_is_the_poison_chunk(case_id):
     query_text, poison_file, _legit_file = CASES[case_id]
-
     standard_hits = standard_rag_answer_context(query_text, k=3)
     assert standard_hits, "no vectors returned — is the corpus ingested into Chroma?"
     assert standard_hits[0]["metadata"]["source_file"] == poison_file, (
@@ -65,10 +64,18 @@ def test_standard_rag_top1_is_poison_but_trust_weighted_top1_is_not(case_id):
         f"{standard_hits[0]['metadata']['source_file']}"
     )
 
+
+@pytest.mark.slow
+@pytest.mark.parametrize("case_id", [
+    "poison_tmao_redmeat_neutral",
+    "poison_antibiotics_cdiff_protective",
+])
+def test_trust_weighted_top1_is_not_a_poison_chunk(case_id):
+    query_text, _poison_file, _legit_file = CASES[case_id]
     trust_hits = trust_weighted_rerank(query_text, k_retrieve=10, k_return=3)
     assert trust_hits
     assert not trust_hits[0]["metadata"]["source_file"].startswith(POISON_PREFIX), (
-        f"{case_id}: trust-weighted rerank still returned a poison chunk at rank 1"
+        f"{case_id}: trust-weighted rerank returned a poison chunk at rank 1"
     )
 
 

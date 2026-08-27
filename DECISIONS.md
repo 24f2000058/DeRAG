@@ -670,13 +670,20 @@ later milestone next touches the relevant file.
   stores every abstract — all 47 filler AND the 3 poison-targeted legit —
   as a **leading-sentence excerpt truncated to ≤480 chars**, not the
   complete abstract. `MAX_CHUNK_CHARS` stayed 480 and the sentence-count
-  filter stayed 4–8 sentences (168 docs eligible; 47 filler selected
-  deterministically by lowest SciFact claim id, then sorted by
-  `chunk_id`). Consequence: the spec's "50 unmodified abstracts" are in
+  filter stayed 4–8 sentences (168 docs eligible; `select_filler_claims`
+  deduplicates the eligible claims by cited `doc_id` and orders the
+  result by the `scifact_{doc_id}_{slug}` chunk-id string, taking the
+  first 47 — deterministic, and the per-doc claim-id tracking in the code
+  has no effect on which documents are chosen). Consequence: the spec's "50 unmodified abstracts" are in
   practice 50 truncated leading-sentence excerpts of real abstracts — a
   deliberate trade to preserve the single-chunk invariant without raising
-  `chunk_size` system-wide. Controller-verified: all 50 legit `.txt`
-  files yield exactly one chunk from `ingest_prep`.
+  `chunk_size` system-wide. Leading-sentence excerpting (rather than a
+  conclusion-preserving excerpt) is a deliberate simplification: it is
+  the mechanical reason two of the spec's three §2 similarity orderings
+  flipped, and a results-aware excerpt would likely have preserved them
+  without changing `chunk_size` — deferred to Milestone 10.
+  Controller-verified: all 50 legit `.txt` files yield exactly one chunk
+  from `ingest_prep`.
 - **Poison design.** 3 real SciFact claims adversarially inverted — the
   causal conclusion flipped while named entities and statistical framing
   are kept. Files carry the `FABRICATED_MISINFO_` prefix, are flagged

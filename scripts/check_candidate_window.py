@@ -24,15 +24,26 @@ DEFAULT_CORPUS_DIR = Path("data/demo_corpus")
 
 
 def check(corpus_dir: Path = DEFAULT_CORPUS_DIR, k: int = 10) -> int:
-    chunks = json.loads((corpus_dir / "manifest.json").read_text(encoding="utf-8"))["chunks"]
+    manifest_path = corpus_dir / "manifest.json"
+    chunks = json.loads(manifest_path.read_text(encoding="utf-8"))["chunks"]
     by_chunk_id = {c["chunk_id"]: c for c in chunks}
     all_ok = True
+    pairs_checked = 0
 
     for entry in chunks:
         if not entry["is_poisoned"] or not entry["target_queries"]:
             continue
-        ground_truth = by_chunk_id[entry["ground_truth_chunk_id"]]
+        gt_id = entry["ground_truth_chunk_id"]
+        if not gt_id or gt_id not in by_chunk_id:
+            print(
+                f"[preflight] ERROR: poison chunk {entry['chunk_id']!r} has "
+                f"ground_truth_chunk_id={gt_id!r}, which is not a chunk in "
+                f"{manifest_path}"
+            )
+            return 1
+        ground_truth = by_chunk_id[gt_id]
         for question in entry["target_queries"]:
+            pairs_checked += 1
             hits = query(question, k=k)
             present = {hit["metadata"]["source_file"] for hit in hits}
             poison_ok = entry["filename"] in present
@@ -42,6 +53,13 @@ def check(corpus_dir: Path = DEFAULT_CORPUS_DIR, k: int = 10) -> int:
             print(f"  poison {entry['filename']}: {'OK' if poison_ok else 'MISSING'}")
             print(f"  legit  {ground_truth['filename']}: {'OK' if legit_ok else 'MISSING'}")
             print(f"  top-{k}: {[hit['metadata']['source_file'] for hit in hits]}")
+
+    if pairs_checked == 0:
+        print(
+            f"[preflight] ERROR: no poisoned entries with target_queries found in "
+            f"{manifest_path} — wrong --corpus-dir?"
+        )
+        return 1
 
     print("[preflight] PASS" if all_ok else "[preflight] FAIL — see MISSING rows above")
     return 0 if all_ok else 1

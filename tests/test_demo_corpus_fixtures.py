@@ -9,8 +9,10 @@ from pathlib import Path
 
 import pytest
 
+from pipeline.chunking import chunk_text
 from pipeline.embeddings import cosine_similarity, embed
 from pipeline.ingest_prep import ingest_prep
+from pipeline.normalize import normalize_text
 
 CORPUS_DIR = Path(__file__).resolve().parent.parent / "data" / "demo_corpus"
 
@@ -104,3 +106,22 @@ def test_antibiotics_poison_similarity_direction_is_recorded():
     poison_sim = _sim(query, (CORPUS_DIR / poison["filename"]).read_text())
     legit_sim = _sim(query, (CORPUS_DIR / legit["filename"]).read_text())
     assert legit_sim > poison_sim
+
+
+@pytest.mark.parametrize(
+    "entry", _manifest_chunks(), ids=lambda e: e["chunk_id"]
+)
+def test_every_committed_corpus_file_is_exactly_one_chunk(entry):
+    path = CORPUS_DIR / entry["filename"]
+    assert path.exists(), f"{entry['filename']} is in manifest.json but missing on disk"
+    text = path.read_text(encoding="utf-8")
+    assert len(chunk_text(normalize_text(text))) == 1, (
+        f"{entry['filename']} splits into >1 chunk — seed_reputation.resolve_doc_hash "
+        "would abort the seeding run"
+    )
+
+
+def test_manifest_filenames_and_disk_txt_files_are_in_parity():
+    manifest_files = {e["filename"] for e in _manifest_chunks()}
+    disk_files = {p.name for p in CORPUS_DIR.glob("*.txt")}
+    assert manifest_files == disk_files

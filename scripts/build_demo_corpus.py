@@ -192,7 +192,7 @@ def _download_archive() -> Path:
     archive = CACHE_DIR / "scifact-data.tar.gz"
     if not archive.exists():
         print(f"[build] downloading {SCIFACT_URL}")
-        with urllib.request.urlopen(SCIFACT_URL) as resp:  # noqa: S310 (fixed https URL)
+        with urllib.request.urlopen(SCIFACT_URL, timeout=60) as resp:  # noqa: S310 (fixed https URL)
             archive.write_bytes(resp.read())
     return archive
 
@@ -214,6 +214,11 @@ def _load_scifact(archive: Path) -> tuple[list[dict], dict[int, dict]]:
 
 def _write_corpus(corpus_dir: Path, filler: list[dict], corpus: dict[int, dict]) -> None:
     corpus_dir.mkdir(parents=True, exist_ok=True)
+    # Clear stale legit excerpts from a prior build (e.g. after a filter
+    # change) so they cannot linger. Only scifact_*.txt — never the
+    # hand-authored FABRICATED_MISINFO_*.txt files or manifest.json.
+    for stale in corpus_dir.glob("scifact_*.txt"):
+        stale.unlink()
     for f in filler:
         path = corpus_dir / f"scifact_{f['doc_id']}_{f['slug']}.txt"
         path.write_text(f["text"] + "\n", encoding="utf-8")
