@@ -1,0 +1,1 @@
+Highly conserved among eukaryotic cells, the AMP-activated kinase (AMPK) is a central regulator of carbon metabolism. To map the complete network of interactions around AMPK in yeast (Snf1) and to evaluate the role of its regulatory subunit Snf4, we measured global mRNA, protein and metabolite levels in wild type, Deltasnf1, Deltasnf4, and Deltasnf1Deltasnf4 knockout strains.

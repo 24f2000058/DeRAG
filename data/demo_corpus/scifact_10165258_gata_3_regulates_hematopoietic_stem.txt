@@ -1,0 +1,1 @@
+Maintaining hematopoietic stem cell (HSC) quiescence is a critical property for the life-long generation of blood cells. Approximately 75% of cells in a highly enriched long-term repopulating HSC (LT-HSC) pool (Lin(-)Sca1(+)c-Kit(hi)CD150(+)CD48(-)) are quiescent, with only a small percentage of the LT-HSCs in cycle.

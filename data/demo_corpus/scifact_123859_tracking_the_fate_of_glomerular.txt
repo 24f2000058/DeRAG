@@ -1,0 +1,1 @@
+Podocytes are critical in the maintenance of a healthy glomerular filter; however, they have been difficult to study in the intact kidney because of technical limitations. Here we report the development of serial multiphoton microscopy (MPM) of the same glomeruli over several days to visualize the motility of podocytes and parietal epithelial cells (PECs) in vivo.

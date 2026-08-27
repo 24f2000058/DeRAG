@@ -1,0 +1,1 @@
+The clinical course and eventual outcome, or prognosis, of complex diseases varies enormously between affected individuals. This variability critically determines the impact a disease has on a patient's life but is very poorly understood. Here, we exploit existing genome-wide association study data to gain insight into the role of genetics in prognosis.

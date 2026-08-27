@@ -1,0 +1,1 @@
+Mammalian long intergenic noncoding RNAs (lincRNAs) are best known for modulating transcription. Here we report a posttranscriptional function for lincRNA-p21 as a modulator of translation. Association of the RNA-binding protein HuR with lincRNA-p21 favored the recruitment of let-7/Ago2 to lincRNA-p21, leading to lower lincRNA-p21 stability.
