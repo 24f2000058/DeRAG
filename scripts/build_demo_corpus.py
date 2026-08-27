@@ -38,7 +38,7 @@ TARGETS = {
     },
     6372244: {
         "slug": "antibiotics_cdiff",
-        "query": "How does antibiotic treatment change colonization resistance and gut microbiome bile acid metabolism relevant to Clostridium difficile infection?",
+        "query": "Do antibiotics increase susceptibility to Clostridium difficile infection?",
     },
     14803797: {
         "slug": "tmao_redmeat",
