@@ -160,15 +160,40 @@ via `registry_client.update_reputation(doc_hash, delta,
 signing_key=oracle_default)`, run by the new `scripts/seed_reputation.py`
 after ingestion.
 
-**Deltas** (deliberately reusing Milestone 6's exact validated synthetic
-magnitudes, for narrative continuity — "the same reputation swing
-proven synthetically, now proven on real content"):
+**`update_reputation` applies a relative delta to whatever's currently
+on-chain — it is not idempotent by construction.** Running
+`seed_reputation.py` twice against already-seeded state (a plausible
+accident during development, and literally what "run the regression
+test multiple times" implies unless guarded against) would drive a
+poisoned chunk's reputation from -50 to -100 to -150 on each successive
+run. This is the same class of problem Milestone 5's `ingest.py`
+already solved with its skip-if-already-registered check
+(`_resolve_chunk_cid`), and `seed_reputation.py` needs the equivalent
+treatment:
 
-- Poisoned chunks: **`reputation_delta = -50`**
+**Manifest values are target reputations, not raw deltas.** The
+manifest field is `target_reputation` (an absolute value each
+`doc_hash` should end up at), not `reputation_delta`. For each manifest
+entry, `seed_reputation.py`:
+
+1. Reads current on-chain state via `get_document(doc_hash)["reputation_score"]`.
+2. If `current == target_reputation`: skip — already seeded, no-op.
+3. Otherwise: calls `update_reputation(doc_hash, delta=target_reputation - current, signing_key=oracle_default)`.
+
+This makes re-running the script against already-seeded state a no-op,
+and makes a partially-failed run (e.g. seeding crashes halfway through
+53 chunks) safely resumable by re-running the whole script.
+
+**Target values** (deliberately reusing Milestone 6's exact validated
+synthetic magnitudes, for narrative continuity — "the same reputation
+swing proven synthetically, now proven on real content"):
+
+- Poisoned chunks: **`target_reputation = -50`**
 - The 3 legit chunks poison specifically targets (2a/2b/2c above):
-  **`reputation_delta = +10`**
-- All other ~47 legit filler chunks: **`reputation_delta = 0`** (stays
-  at the fresh-registration default, no seeding call needed)
+  **`target_reputation = +10`**
+- All other ~47 legit filler chunks: **`target_reputation = 0`** (this
+  already matches the fresh-registration default, so step 2 above skips
+  these — no on-chain transaction needed for filler chunks at all)
 
 **Validated by hand against `retrieval/rerank.py`'s real formula**
 (`SCALE=10`, `alpha=0.7`, `hybrid_score = alpha*similarity +
@@ -189,6 +214,32 @@ means no blind alpha/SCALE/FLOOR_PENALTY tuning should be needed to
 make it pass. If the live test doesn't flip: check embedding
 determinism and whether Chroma's approximate search reordered the
 top-10 candidate set before assuming the constants are wrong.
+
+### 3a. Candidate-window pre-flight check (required before trusting the margins above)
+
+The similarity numbers in section 2 only prove the poison beats *its
+own* legit counterpart — they say nothing about whether either chunk
+actually survives into `trust_weighted_rerank`'s candidate pool.
+`trust_weighted_rerank` reranks whatever `vector_store.query(query,
+k_retrieve=10)` already surfaced; if some unrelated filler abstract
+among the other ~47 diverse real SciFact topics happens to score above
+~0.79 for the TMAO query purely by coincidence, the correct chunk could
+be crowded out of the top-10 before reranking ever gets a chance to
+help — no amount of reputation seeding fixes a chunk that isn't in the
+candidate set at all. This has not been checked yet; the offline spike
+only compared two chunks pairwise, not against the full 53-chunk
+corpus.
+
+**Required verification step, once the real corpus is ingested**: for
+each of the TMAO and antibiotics queries, run
+`vector_store.query(query_text, k=10)` against the live-ingested corpus
+and inspect the returned `chroma_id`/`metadata` list directly — confirm
+both the poison chunk and its `ground_truth_chunk_id` counterpart
+appear somewhere in the 10. If either is missing, the fix is to
+increase `k_retrieve` for the regression test's call, or make the
+missing chunk more retrieval-competitive (not to loosen the assertion).
+This becomes an explicit step in the implementation plan, not an
+assumption baked into the regression test.
 
 ## 4. Publisher account assignment
 
@@ -239,10 +290,12 @@ data/demo_corpus/
 `scripts/seed_reputation.py` iterates `manifest.json` entries and calls
 `run_ingest(file_path, publisher_key=entry["publisher_key"])` **once per
 file** (not once for the whole directory), since each file needs its
-own publisher key. After ingestion, it calls `update_reputation` for
-every entry with a non-zero `reputation_delta`, signing with the oracle
-key (`PRIVATE_KEY` / Account #0, already auto-authorized as oracle per
-the Milestone 3 contract).
+own publisher key. After ingestion, for every entry it reads current
+on-chain reputation via `get_document(doc_hash)` and applies the
+idempotent target-reputation logic from section 3 (skip if already at
+target, otherwise `update_reputation(doc_hash, delta=target-current,
+...)`), signing with the oracle key (`PRIVATE_KEY` / Account #0,
+already auto-authorized as oracle per the Milestone 3 contract).
 
 ## 6. `manifest.json` schema
 
@@ -258,7 +311,7 @@ ground truth an IR evaluation needs.
       "chunk_id": "poison_hpylori_protective",
       "is_poisoned": true,
       "publisher_key": "PUBLISHER_5_KEY",
-      "reputation_delta": -50,
+      "target_reputation": -50,
       "target_queries": [
         "Does H. pylori infection increase the risk of gastric cancer?"
       ],
@@ -269,7 +322,7 @@ ground truth an IR evaluation needs.
       "chunk_id": "scifact_2052720_hpylori_gastric_cancer",
       "is_poisoned": false,
       "publisher_key": "PUBLISHER_2_KEY",
-      "reputation_delta": 10,
+      "target_reputation": 10,
       "target_queries": [
         "Does H. pylori infection increase the risk of gastric cancer?"
       ],
@@ -280,7 +333,7 @@ ground truth an IR evaluation needs.
       "chunk_id": "scifact_<doc_id>_<slug>",
       "is_poisoned": false,
       "publisher_key": "PUBLISHER_1_KEY",
-      "reputation_delta": 0,
+      "target_reputation": 0,
       "target_queries": [],
       "ground_truth_chunk_id": null
     }
@@ -291,7 +344,9 @@ ground truth an IR evaluation needs.
 `chunk_id` is a stable, human-readable manifest key (not the same as
 the content-hash `doc_hash` computed at ingestion time, which is only
 known after `ingest_prep` runs). `ground_truth_chunk_id` is null for
-filler chunks not tied to any target query.
+filler chunks not tied to any target query. `target_reputation` is an
+absolute value (see section 3's idempotency fix) — never applied as a
+raw delta by `seed_reputation.py`.
 
 ## 7. `.gitignore` carve-out
 
@@ -312,27 +367,42 @@ swept up as "just local data."
 1. `data/demo_corpus/` — 50 real SciFact abstracts + 3 poisoned files +
    `manifest.json`, per sections 1-6.
 2. `scripts/seed_reputation.py` — runs `ingest.py`'s `run_ingest()` flow
-   per manifest entry with the right `publisher_key`, then applies
-   `update_reputation` deltas per the manifest.
-3. A regression test (new file, e.g.
+   per manifest entry with the right `publisher_key`, then applies the
+   idempotent target-reputation logic from section 3 (read current via
+   `get_document`, skip or apply `delta = target - current`) — never a
+   blind reapplication of a static delta.
+3. The section 3a candidate-window pre-flight check, run once against
+   the live-ingested corpus and recorded (e.g. in the task report or
+   `DECISIONS.md`): confirm both the poison chunk and its
+   `ground_truth_chunk_id` counterpart appear in
+   `vector_store.query(query_text, k=10)` for the TMAO and antibiotics
+   queries before the regression test is written to rely on them.
+4. A regression test (new file, e.g.
    `tests/test_demo_corpus_regression.py`), reusing the exact assertion
    shape from `tests/test_retrieval_rerank.py`'s
    `test_trust_weighted_rerank_demotes_high_similarity_negative_reputation_doc`
    — but against the real corpus and real running Hardhat/IPFS/Chroma
    (marked slow, live-service docstring per established convention).
-   Primary query: the TMAO/red-meat query (largest real margin). Must
-   be run multiple times before being considered reliable, to rule out
-   embedding nondeterminism or leftover chain state.
-4. `DEMO.md` — scripted runbook: the queries to run live in the
+   Primary query: the TMAO/red-meat query (largest real margin).
+5. `DEMO.md` — scripted runbook: the queries to run live in the
    Milestone 8 UI, both modes toggled explicitly, what each mode shows,
    and a one-paragraph plain-language explanation for a viva panel.
 
 ## Definition of done
 
-The regression test passes reliably across multiple runs, and
-`DEMO.md`'s scripted queries work when walked through manually against
-the live Milestone 8 UI. A `DECISIONS.md` entry records the dataset
-choice and why, the final reputation deltas and whether they needed
-iteration, the publisher scheme, and explicit confirmation of whether
-alpha/SCALE/FLOOR_PENALTY needed retuning against real data (hypothesis
-going in: no).
+The regression test passes reliably across **multiple fresh full-pipeline
+runs** — re-ingest against clean IPFS/Chroma/chain state, re-seed, then
+run the test — not repeated `pytest` invocations against the same
+already-seeded state. Once the section 3 idempotency fix lands, a
+second `seed_reputation.py` run against already-seeded state is a
+no-op by design, so it can't stand in for a reliability check: only a
+fresh run (new chain/IPFS/Chroma state, or at minimum a wipe of the
+local Chroma persistence directory and a fresh Hardhat node) actually
+exercises the embedding-determinism and Chroma-approximate-search
+concerns this milestone cares about. `DEMO.md`'s scripted queries must
+also work when walked through manually against the live Milestone 8
+UI. A `DECISIONS.md` entry records the dataset choice and why, the
+final reputation deltas and whether they needed iteration, the
+publisher scheme, the candidate-window pre-flight check's result, and
+explicit confirmation of whether alpha/SCALE/FLOOR_PENALTY needed
+retuning against real data (hypothesis going in: no).
