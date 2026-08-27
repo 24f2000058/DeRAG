@@ -28,6 +28,23 @@ from storage.ipfs_client import IPFSError, upload_text, verify_hash
 # Publicly known test-only key, no real funds.
 PUBLISHER_1_KEY = "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d"
 
+# Hardhat's deterministic default Account #2 and #5 private keys (mnemonic
+# "test test test test test test test test test test test junk"). Publicly
+# known test-only keys with no real funds — same class of constant as
+# PUBLISHER_1_KEY above. Verify against the account list `npx hardhat node`
+# prints on startup if the local node ever uses a non-default mnemonic.
+PUBLISHER_2_KEY = "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a"
+PUBLISHER_5_KEY = "0x8b3a350cf5c34c9194ca85829a2df0ec3153be0318b5e2d3348e872092edffba"
+
+# Manifest publisher_key names -> signing key. Filler chunks publish from
+# Account #1, the 3 poison-targeted legit chunks from Account #2, and all
+# 3 poison chunks from Account #5 (the deliberate outlier in the audit UI).
+PUBLISHER_KEYS = {
+    "PUBLISHER_1_KEY": PUBLISHER_1_KEY,
+    "PUBLISHER_2_KEY": PUBLISHER_2_KEY,
+    "PUBLISHER_5_KEY": PUBLISHER_5_KEY,
+}
+
 _TEXT_SUFFIXES = {".txt", ".pdf"}
 
 

@@ -18,7 +18,17 @@ from unittest.mock import patch
 import pytest
 
 from blockchain.registry_client import RegistryError
-from scripts.ingest import PUBLISHER_1_KEY, _collect_input_files, _extract_text, _resolve_chunk_cid
+from scripts.ingest import PUBLISHER_1_KEY, PUBLISHER_KEYS, _collect_input_files, _extract_text, _resolve_chunk_cid
+
+
+def test_publisher_keys_map_covers_all_manifest_names():
+    assert set(PUBLISHER_KEYS) == {"PUBLISHER_1_KEY", "PUBLISHER_2_KEY", "PUBLISHER_5_KEY"}
+    for name, key in PUBLISHER_KEYS.items():
+        assert key.startswith("0x") and len(key) == 66, name
+    # The existing Account #1 constant must remain the canonical value.
+    assert PUBLISHER_KEYS["PUBLISHER_1_KEY"] == PUBLISHER_1_KEY
+    # All three keys must be distinct accounts.
+    assert len(set(PUBLISHER_KEYS.values())) == 3
 
 
 def test_extract_text_reads_txt_file_as_utf8(tmp_path):

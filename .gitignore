@@ -16,6 +16,9 @@ vector_store/
 data/*
 !data/.gitkeep
 !data/sample.txt
+# Milestone 9 demo corpus is a reviewable deliverable, not scratch data.
+!data/demo_corpus/
+!data/demo_corpus/**
 
 # OS
 .DS_Store
