@@ -112,3 +112,13 @@ def test_manifest_filenames_and_disk_txt_files_are_in_parity():
     manifest_files = {e["filename"] for e in _manifest_chunks()}
     disk_files = {p.name for p in CORPUS_DIR.glob("*.txt")}
     assert manifest_files == disk_files
+
+
+def test_every_manifest_entry_has_source_doc_id():
+    for c in _manifest_chunks():
+        assert "source_doc_id" in c, c["chunk_id"]
+        if c["is_poisoned"]:
+            assert c["source_doc_id"] is None
+        else:
+            assert isinstance(c["source_doc_id"], str) and c["source_doc_id"].isdigit()
+            assert c["source_doc_id"] in c["chunk_id"]

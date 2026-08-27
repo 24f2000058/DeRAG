@@ -150,6 +150,7 @@ def build_manifest(filler: list[dict]) -> dict:
             {
                 "filename": f"{chunk_id}.txt",
                 "chunk_id": chunk_id,
+                "source_doc_id": str(f["doc_id"]),
                 "is_poisoned": False,
                 "publisher_key": "PUBLISHER_1_KEY",
                 "target_reputation": 0,
@@ -163,6 +164,7 @@ def build_manifest(filler: list[dict]) -> dict:
             {
                 "filename": f"{chunk_id}.txt",
                 "chunk_id": chunk_id,
+                "source_doc_id": str(doc_id),
                 "is_poisoned": False,
                 "publisher_key": "PUBLISHER_2_KEY",
                 "target_reputation": 10,
@@ -177,6 +179,7 @@ def build_manifest(filler: list[dict]) -> dict:
             {
                 "filename": pmeta["filename"],
                 "chunk_id": chunk_id,
+                "source_doc_id": None,
                 "is_poisoned": True,
                 "publisher_key": "PUBLISHER_5_KEY",
                 "target_reputation": -50,

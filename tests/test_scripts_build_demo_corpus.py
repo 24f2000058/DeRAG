@@ -117,6 +117,32 @@ def test_targets_and_poison_constants_are_consistent():
     assert {p["target_doc_id"] for p in POISON.values()} == set(TARGETS)
 
 
+def test_build_manifest_sets_source_doc_id():
+    filler = [
+        {"doc_id": 111, "title": "Doc 111", "slug": "doc_111", "text": "t"},
+        {"doc_id": 222, "title": "Doc 222", "slug": "doc_222", "text": "t"},
+    ]
+    chunks = build_manifest(filler)["chunks"]
+    by_id = {c["chunk_id"]: c for c in chunks}
+
+    # filler + targeted legit -> stringified SciFact doc id, taken from chunk_id
+    for c in chunks:
+        if c["chunk_id"].startswith("scifact_"):
+            expected = c["chunk_id"].split("_")[1]
+            assert c["source_doc_id"] == expected
+            assert c["source_doc_id"].isdigit()
+
+    # poison -> None
+    for c in chunks:
+        if c["is_poisoned"]:
+            assert c["source_doc_id"] is None
+
+    # key order: source_doc_id immediately follows chunk_id
+    sample = by_id["scifact_111_doc_111"]
+    keys = list(sample.keys())
+    assert keys[keys.index("chunk_id") + 1] == "source_doc_id"
+
+
 @pytest.mark.slow
 def test_full_build_is_deterministic_and_well_formed(tmp_path, monkeypatch):
     """Requires network access on first run to fetch the SciFact archive

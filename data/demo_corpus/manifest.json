@@ -3,6 +3,7 @@
     {
       "filename": "scifact_10165258_gata_3_regulates_hematopoietic_stem.txt",
       "chunk_id": "scifact_10165258_gata_3_regulates_hematopoietic_stem",
+      "source_doc_id": "10165258",
       "is_poisoned": false,
       "publisher_key": "PUBLISHER_1_KEY",
       "target_reputation": 0,
@@ -12,6 +13,7 @@
     {
       "filename": "scifact_10648422_programmed_death_1_induced_interleukin.txt",
       "chunk_id": "scifact_10648422_programmed_death_1_induced_interleukin",
+      "source_doc_id": "10648422",
       "is_poisoned": false,
       "publisher_key": "PUBLISHER_1_KEY",
       "target_reputation": 0,
@@ -21,6 +23,7 @@
     {
       "filename": "scifact_1071991_lymph_node_t_cell_responses.txt",
       "chunk_id": "scifact_1071991_lymph_node_t_cell_responses",
+      "source_doc_id": "1071991",
       "is_poisoned": false,
       "publisher_key": "PUBLISHER_1_KEY",
       "target_reputation": 0,
@@ -30,6 +33,7 @@
     {
       "filename": "scifact_1084345_restoration_of_chaperone_mediated_autophagy.txt",
       "chunk_id": "scifact_1084345_restoration_of_chaperone_mediated_autophagy",
+      "source_doc_id": "1084345",
       "is_poisoned": false,
       "publisher_key": "PUBLISHER_1_KEY",
       "target_reputation": 0,
@@ -39,6 +43,7 @@
     {
       "filename": "scifact_10991183_the_rho_gefs_larg_and.txt",
       "chunk_id": "scifact_10991183_the_rho_gefs_larg_and",
+      "source_doc_id": "10991183",
       "is_poisoned": false,
       "publisher_key": "PUBLISHER_1_KEY",
       "target_reputation": 0,
@@ -48,6 +53,7 @@
     {
       "filename": "scifact_1127562_loss_of_the_rhogap_srgp.txt",
       "chunk_id": "scifact_1127562_loss_of_the_rhogap_srgp",
+      "source_doc_id": "1127562",
       "is_poisoned": false,
       "publisher_key": "PUBLISHER_1_KEY",
       "target_reputation": 0,
@@ -57,6 +63,7 @@
     {
       "filename": "scifact_11291348_gsk_3_mediated_phosphorylation_enhances.txt",
       "chunk_id": "scifact_11291348_gsk_3_mediated_phosphorylation_enhances",
+      "source_doc_id": "11291348",
       "is_poisoned": false,
       "publisher_key": "PUBLISHER_1_KEY",
       "target_reputation": 0,
@@ -66,6 +73,7 @@
     {
       "filename": "scifact_11369420_tetraspanin_3_is_required_for.txt",
       "chunk_id": "scifact_11369420_tetraspanin_3_is_required_for",
+      "source_doc_id": "11369420",
       "is_poisoned": false,
       "publisher_key": "PUBLISHER_1_KEY",
       "target_reputation": 0,
@@ -75,6 +83,7 @@
     {
       "filename": "scifact_11527199_mhc_haplotype_matching_for_unrelated.txt",
       "chunk_id": "scifact_11527199_mhc_haplotype_matching_for_unrelated",
+      "source_doc_id": "11527199",
       "is_poisoned": false,
       "publisher_key": "PUBLISHER_1_KEY",
       "target_reputation": 0,
@@ -84,6 +93,7 @@
     {
       "filename": "scifact_11603066_using_structural_information_to_change.txt",
       "chunk_id": "scifact_11603066_using_structural_information_to_change",
+      "source_doc_id": "11603066",
       "is_poisoned": false,
       "publisher_key": "PUBLISHER_1_KEY",
       "target_reputation": 0,
@@ -93,6 +103,7 @@
     {
       "filename": "scifact_11659421_human_ipsc_based_modeling_of.txt",
       "chunk_id": "scifact_11659421_human_ipsc_based_modeling_of",
+      "source_doc_id": "11659421",
       "is_poisoned": false,
       "publisher_key": "PUBLISHER_1_KEY",
       "target_reputation": 0,
@@ -102,6 +113,7 @@
     {
       "filename": "scifact_11902109_direct_sensing_of_systemic_and.txt",
       "chunk_id": "scifact_11902109_direct_sensing_of_systemic_and",
+      "source_doc_id": "11902109",
       "is_poisoned": false,
       "publisher_key": "PUBLISHER_1_KEY",
       "target_reputation": 0,
@@ -111,6 +123,7 @@
     {
       "filename": "scifact_12040627_the_histone_acetyltransferase_mof_is.txt",
       "chunk_id": "scifact_12040627_the_histone_acetyltransferase_mof_is",
+      "source_doc_id": "12040627",
       "is_poisoned": false,
       "publisher_key": "PUBLISHER_1_KEY",
       "target_reputation": 0,
@@ -120,6 +133,7 @@
     {
       "filename": "scifact_123859_tracking_the_fate_of_glomerular.txt",
       "chunk_id": "scifact_123859_tracking_the_fate_of_glomerular",
+      "source_doc_id": "123859",
       "is_poisoned": false,
       "publisher_key": "PUBLISHER_1_KEY",
       "target_reputation": 0,
@@ -129,6 +143,7 @@
     {
       "filename": "scifact_12486491_ribosome_mediated_specificity_in_hox.txt",
       "chunk_id": "scifact_12486491_ribosome_mediated_specificity_in_hox",
+      "source_doc_id": "12486491",
       "is_poisoned": false,
       "publisher_key": "PUBLISHER_1_KEY",
       "target_reputation": 0,
@@ -138,6 +153,7 @@
     {
       "filename": "scifact_12580014_keratin_dependent_regulation_of_aire.txt",
       "chunk_id": "scifact_12580014_keratin_dependent_regulation_of_aire",
+      "source_doc_id": "12580014",
       "is_poisoned": false,
       "publisher_key": "PUBLISHER_1_KEY",
       "target_reputation": 0,
@@ -147,6 +163,7 @@
     {
       "filename": "scifact_12631697_activation_of_fast_skeletal_muscle.txt",
       "chunk_id": "scifact_12631697_activation_of_fast_skeletal_muscle",
+      "source_doc_id": "12631697",
       "is_poisoned": false,
       "publisher_key": "PUBLISHER_1_KEY",
       "target_reputation": 0,
@@ -156,6 +173,7 @@
     {
       "filename": "scifact_12643937_a_genome_wide_sirna_screen.txt",
       "chunk_id": "scifact_12643937_a_genome_wide_sirna_screen",
+      "source_doc_id": "12643937",
       "is_poisoned": false,
       "publisher_key": "PUBLISHER_1_KEY",
       "target_reputation": 0,
@@ -165,6 +183,7 @@
     {
       "filename": "scifact_12670680_basophils_and_the_t_helper.txt",
       "chunk_id": "scifact_12670680_basophils_and_the_t_helper",
+      "source_doc_id": "12670680",
       "is_poisoned": false,
       "publisher_key": "PUBLISHER_1_KEY",
       "target_reputation": 0,
@@ -174,6 +193,7 @@
     {
       "filename": "scifact_12827098_tissue_resident_macrophages_self_maintain.txt",
       "chunk_id": "scifact_12827098_tissue_resident_macrophages_self_maintain",
+      "source_doc_id": "12827098",
       "is_poisoned": false,
       "publisher_key": "PUBLISHER_1_KEY",
       "target_reputation": 0,
@@ -183,6 +203,7 @@
     {
       "filename": "scifact_12885341_a_c_type_lectin_collaborates.txt",
       "chunk_id": "scifact_12885341_a_c_type_lectin_collaborates",
+      "source_doc_id": "12885341",
       "is_poisoned": false,
       "publisher_key": "PUBLISHER_1_KEY",
       "target_reputation": 0,
@@ -192,6 +213,7 @@
     {
       "filename": "scifact_13001323_sirt1_deacetylase_in_sf1_neurons.txt",
       "chunk_id": "scifact_13001323_sirt1_deacetylase_in_sf1_neurons",
+      "source_doc_id": "13001323",
       "is_poisoned": false,
       "publisher_key": "PUBLISHER_1_KEY",
       "target_reputation": 0,
@@ -201,6 +223,7 @@
     {
       "filename": "scifact_13023410_bcr_abl_oncogenic_kinase_promotes.txt",
       "chunk_id": "scifact_13023410_bcr_abl_oncogenic_kinase_promotes",
+      "source_doc_id": "13023410",
       "is_poisoned": false,
       "publisher_key": "PUBLISHER_1_KEY",
       "target_reputation": 0,
@@ -210,6 +233,7 @@
     {
       "filename": "scifact_13439128_the_bloom_s_syndrome_gene.txt",
       "chunk_id": "scifact_13439128_the_bloom_s_syndrome_gene",
+      "source_doc_id": "13439128",
       "is_poisoned": false,
       "publisher_key": "PUBLISHER_1_KEY",
       "target_reputation": 0,
@@ -219,6 +243,7 @@
     {
       "filename": "scifact_13481880_yap_taz_dependent_reprogramming_of.txt",
       "chunk_id": "scifact_13481880_yap_taz_dependent_reprogramming_of",
+      "source_doc_id": "13481880",
       "is_poisoned": false,
       "publisher_key": "PUBLISHER_1_KEY",
       "target_reputation": 0,
@@ -228,6 +253,7 @@
     {
       "filename": "scifact_13509809_matrix_embedded_osteocytes_regulate_mobilization.txt",
       "chunk_id": "scifact_13509809_matrix_embedded_osteocytes_regulate_mobilization",
+      "source_doc_id": "13509809",
       "is_poisoned": false,
       "publisher_key": "PUBLISHER_1_KEY",
       "target_reputation": 0,
@@ -237,6 +263,7 @@
     {
       "filename": "scifact_13513790_generation_of_genetically_modified_mice.txt",
       "chunk_id": "scifact_13513790_generation_of_genetically_modified_mice",
+      "source_doc_id": "13513790",
       "is_poisoned": false,
       "publisher_key": "PUBLISHER_1_KEY",
       "target_reputation": 0,
@@ -246,6 +273,7 @@
     {
       "filename": "scifact_13639330_histone_methylation_dependent_mechanisms_impose.txt",
       "chunk_id": "scifact_13639330_histone_methylation_dependent_mechanisms_impose",
+      "source_doc_id": "13639330",
       "is_poisoned": false,
       "publisher_key": "PUBLISHER_1_KEY",
       "target_reputation": 0,
@@ -255,6 +283,7 @@
     {
       "filename": "scifact_13763195_lincrna_p21_suppresses_target_mrna.txt",
       "chunk_id": "scifact_13763195_lincrna_p21_suppresses_target_mrna",
+      "source_doc_id": "13763195",
       "is_poisoned": false,
       "publisher_key": "PUBLISHER_1_KEY",
       "target_reputation": 0,
@@ -264,6 +293,7 @@
     {
       "filename": "scifact_13764090_large_intestine_targeted_nanoparticle_releasing.txt",
       "chunk_id": "scifact_13764090_large_intestine_targeted_nanoparticle_releasing",
+      "source_doc_id": "13764090",
       "is_poisoned": false,
       "publisher_key": "PUBLISHER_1_KEY",
       "target_reputation": 0,
@@ -273,6 +303,7 @@
     {
       "filename": "scifact_13794374_copi_complex_is_a_regulator.txt",
       "chunk_id": "scifact_13794374_copi_complex_is_a_regulator",
+      "source_doc_id": "13794374",
       "is_poisoned": false,
       "publisher_key": "PUBLISHER_1_KEY",
       "target_reputation": 0,
@@ -282,6 +313,7 @@
     {
       "filename": "scifact_13905670_human_snp_links_differential_outcomes.txt",
       "chunk_id": "scifact_13905670_human_snp_links_differential_outcomes",
+      "source_doc_id": "13905670",
       "is_poisoned": false,
       "publisher_key": "PUBLISHER_1_KEY",
       "target_reputation": 0,
@@ -291,6 +323,7 @@
     {
       "filename": "scifact_13910150_the_germ_cell_determinant_blimp1.txt",
       "chunk_id": "scifact_13910150_the_germ_cell_determinant_blimp1",
+      "source_doc_id": "13910150",
       "is_poisoned": false,
       "publisher_key": "PUBLISHER_1_KEY",
       "target_reputation": 0,
@@ -300,6 +333,7 @@
     {
       "filename": "scifact_13956305_major_histocompatibility_complex_associations_of.txt",
       "chunk_id": "scifact_13956305_major_histocompatibility_complex_associations_of",
+      "source_doc_id": "13956305",
       "is_poisoned": false,
       "publisher_key": "PUBLISHER_1_KEY",
       "target_reputation": 0,
@@ -309,6 +343,7 @@
     {
       "filename": "scifact_14541844_reconstruction_of_the_yeast_snf1.txt",
       "chunk_id": "scifact_14541844_reconstruction_of_the_yeast_snf1",
+      "source_doc_id": "14541844",
       "is_poisoned": false,
       "publisher_key": "PUBLISHER_1_KEY",
       "target_reputation": 0,
@@ -318,6 +353,7 @@
     {
       "filename": "scifact_14637235_histone_levels_are_regulated_by.txt",
       "chunk_id": "scifact_14637235_histone_levels_are_regulated_by",
+      "source_doc_id": "14637235",
       "is_poisoned": false,
       "publisher_key": "PUBLISHER_1_KEY",
       "target_reputation": 0,
@@ -327,6 +363,7 @@
     {
       "filename": "scifact_1469751_aptamer_functionalized_lipid_nanoparticles_targeting.txt",
       "chunk_id": "scifact_1469751_aptamer_functionalized_lipid_nanoparticles_targeting",
+      "source_doc_id": "1469751",
       "is_poisoned": false,
       "publisher_key": "PUBLISHER_1_KEY",
       "target_reputation": 0,
@@ -336,6 +373,7 @@
     {
       "filename": "scifact_14717500_rare_variants_create_synthetic_genome.txt",
       "chunk_id": "scifact_14717500_rare_variants_create_synthetic_genome",
+      "source_doc_id": "14717500",
       "is_poisoned": false,
       "publisher_key": "PUBLISHER_1_KEY",
       "target_reputation": 0,
@@ -345,6 +383,7 @@
     {
       "filename": "scifact_14797520_noncoding_transcription_by_rna_polymerase.txt",
       "chunk_id": "scifact_14797520_noncoding_transcription_by_rna_polymerase",
+      "source_doc_id": "14797520",
       "is_poisoned": false,
       "publisher_key": "PUBLISHER_1_KEY",
       "target_reputation": 0,
@@ -354,6 +393,7 @@
     {
       "filename": "scifact_15305881_the_structure_of_ddrb_from.txt",
       "chunk_id": "scifact_15305881_the_structure_of_ddrb_from",
+      "source_doc_id": "15305881",
       "is_poisoned": false,
       "publisher_key": "PUBLISHER_1_KEY",
       "target_reputation": 0,
@@ -363,6 +403,7 @@
     {
       "filename": "scifact_15488881_guidance_of_b_cells_by.txt",
       "chunk_id": "scifact_15488881_guidance_of_b_cells_by",
+      "source_doc_id": "15488881",
       "is_poisoned": false,
       "publisher_key": "PUBLISHER_1_KEY",
       "target_reputation": 0,
@@ -372,6 +413,7 @@
     {
       "filename": "scifact_15493354_sublime_microglia_expanding_roles_for.txt",
       "chunk_id": "scifact_15493354_sublime_microglia_expanding_roles_for",
+      "source_doc_id": "15493354",
       "is_poisoned": false,
       "publisher_key": "PUBLISHER_1_KEY",
       "target_reputation": 0,
@@ -381,6 +423,7 @@
     {
       "filename": "scifact_1550937_the_transcription_factors_egr2_and.txt",
       "chunk_id": "scifact_1550937_the_transcription_factors_egr2_and",
+      "source_doc_id": "1550937",
       "is_poisoned": false,
       "publisher_key": "PUBLISHER_1_KEY",
       "target_reputation": 0,
@@ -390,6 +433,7 @@
     {
       "filename": "scifact_15535511_role_for_insulin_signaling_in.txt",
       "chunk_id": "scifact_15535511_role_for_insulin_signaling_in",
+      "source_doc_id": "15535511",
       "is_poisoned": false,
       "publisher_key": "PUBLISHER_1_KEY",
       "target_reputation": 0,
@@ -399,6 +443,7 @@
     {
       "filename": "scifact_1568684_the_bile_acid_chenodeoxycholic_acid.txt",
       "chunk_id": "scifact_1568684_the_bile_acid_chenodeoxycholic_acid",
+      "source_doc_id": "1568684",
       "is_poisoned": false,
       "publisher_key": "PUBLISHER_1_KEY",
       "target_reputation": 0,
@@ -408,6 +453,7 @@
     {
       "filename": "scifact_16056514_a_key_role_for_orexin.txt",
       "chunk_id": "scifact_16056514_a_key_role_for_orexin",
+      "source_doc_id": "16056514",
       "is_poisoned": false,
       "publisher_key": "PUBLISHER_1_KEY",
       "target_reputation": 0,
@@ -417,6 +463,7 @@
     {
       "filename": "scifact_16066726_tumor_necrosis_factor_signaling_mediates.txt",
       "chunk_id": "scifact_16066726_tumor_necrosis_factor_signaling_mediates",
+      "source_doc_id": "16066726",
       "is_poisoned": false,
       "publisher_key": "PUBLISHER_1_KEY",
       "target_reputation": 0,
@@ -426,6 +473,7 @@
     {
       "filename": "scifact_2052720_hpylori_gastric_cancer.txt",
       "chunk_id": "scifact_2052720_hpylori_gastric_cancer",
+      "source_doc_id": "2052720",
       "is_poisoned": false,
       "publisher_key": "PUBLISHER_2_KEY",
       "target_reputation": 10,
@@ -437,6 +485,7 @@
     {
       "filename": "scifact_6372244_antibiotics_cdiff.txt",
       "chunk_id": "scifact_6372244_antibiotics_cdiff",
+      "source_doc_id": "6372244",
       "is_poisoned": false,
       "publisher_key": "PUBLISHER_2_KEY",
       "target_reputation": 10,
@@ -448,6 +497,7 @@
     {
       "filename": "scifact_14803797_tmao_redmeat.txt",
       "chunk_id": "scifact_14803797_tmao_redmeat",
+      "source_doc_id": "14803797",
       "is_poisoned": false,
       "publisher_key": "PUBLISHER_2_KEY",
       "target_reputation": 10,
@@ -459,6 +509,7 @@
     {
       "filename": "FABRICATED_MISINFO_hpylori_protective.txt",
       "chunk_id": "poison_hpylori_protective",
+      "source_doc_id": null,
       "is_poisoned": true,
       "publisher_key": "PUBLISHER_5_KEY",
       "target_reputation": -50,
@@ -470,6 +521,7 @@
     {
       "filename": "FABRICATED_MISINFO_antibiotics_cdiff_protective.txt",
       "chunk_id": "poison_antibiotics_cdiff_protective",
+      "source_doc_id": null,
       "is_poisoned": true,
       "publisher_key": "PUBLISHER_5_KEY",
       "target_reputation": -50,
@@ -481,6 +533,7 @@
     {
       "filename": "FABRICATED_MISINFO_tmao_redmeat_neutral.txt",
       "chunk_id": "poison_tmao_redmeat_neutral",
+      "source_doc_id": null,
       "is_poisoned": true,
       "publisher_key": "PUBLISHER_5_KEY",
       "target_reputation": -50,
