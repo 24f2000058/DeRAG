@@ -441,7 +441,7 @@
       "publisher_key": "PUBLISHER_2_KEY",
       "target_reputation": 10,
       "target_queries": [
-        "Do antibiotics increase susceptibility to Clostridium difficile infection?"
+        "How does antibiotic treatment change colonization resistance and gut microbiome bile acid metabolism relevant to Clostridium difficile infection?"
       ],
       "ground_truth_chunk_id": "scifact_6372244_antibiotics_cdiff"
     },
@@ -474,7 +474,7 @@
       "publisher_key": "PUBLISHER_5_KEY",
       "target_reputation": -50,
       "target_queries": [
-        "Do antibiotics increase susceptibility to Clostridium difficile infection?"
+        "How does antibiotic treatment change colonization resistance and gut microbiome bile acid metabolism relevant to Clostridium difficile infection?"
       ],
       "ground_truth_chunk_id": "scifact_6372244_antibiotics_cdiff"
     },
