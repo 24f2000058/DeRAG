@@ -148,7 +148,11 @@ So `alpha = 0.7` sits on a flat maximum, not a knife-edge tune. The alpha
 similarity and therefore reproduces Standard RAG's MRR (0.667) exactly.
 The plateau extends all the way to alpha 0.0 (pure reputation) because the
 three legit targets each sit in the candidate window at +10 against their
-poison at −50, so reputation alone already ranks them first.
+poison at −50, so reputation alone already ranks them first. That the
+plateau reaches 0.0 is a statement about the seeded reputation spread on
+these three queries, not evidence that the similarity term is redundant —
+see "If even `alpha = 0.0` scores a perfect MRR" under Information Storage
+& Retrieval.
 
 ---
 
@@ -255,6 +259,33 @@ on H. pylori by roughly 0.046 (thin); on antibiotics the legit excerpt
 still edges the fabrication, 0.7329 versus 0.7092 (margin 0.0237), so
 Standard RAG is already correct there and DeRAG correctly leaves the order
 alone.
+
+### If even `alpha = 0.0` scores a perfect MRR, is the hybrid design actually being tested?
+
+It is a fair challenge, and the honest answer is that the *evaluation set*
+does not test it — the *design* is unchanged. All three evaluation queries
+target chunks that were given a deliberately decisive on-chain reputation
+spread: the legitimate document at +10, its poison counterpart at −50.
+That spread was seeded on purpose, to demonstrate that the mechanism *can*
+override a similarity-based fooling attempt. A consequence is that at
+`alpha = 0.0` the reputation term alone already separates every relevant
+document from its poison, so the sweep's plateau down to 0.0 shows the
+reputation signal is decisive on these three queries — it does not show
+the similarity term carrying a ranking on its own.
+
+The case the current evaluation never exercises is *uninformative*
+reputation. The 47 filler chunks all sit at reputation 0, tied; for any
+query whose ground-truth answer is one of those neutral chunks, the
+`(1 - alpha)` reputation term contributes nothing to the ordering and the
+`alpha * similarity` term has to do all the work. The hybrid formula is
+built for exactly that fallback — as reputation ties or goes neutral it
+degrades to similarity-ranked retrieval — but none of the three target
+queries put it in that regime. Milestone 6's synthetic validation did
+cover mixed and neutral reputation; the Milestone 10 real-data evaluation
+deliberately traded that coverage for a clean poisoning-resistance proof
+on real abstracts. It is a scope limitation of the evaluation set, stated
+in `DECISIONS.md`, not a gap in the ranking design — and it is the first
+of the two items a v2 evaluation should close (see the final section).
 
 ### Be honest about H. pylori: does DeRAG actually fix the generated answer?
 
@@ -448,3 +479,35 @@ The alpha sweep is the same kind of evidence: MRR@10 is 1.000 across alpha
 0.0–0.7 and drops to exactly Standard RAG's 0.667 at alpha 1.0, so the
 shipped `alpha = 0.7` is a point on a flat maximum with a built-in sanity
 check at the endpoint, not a tuned-to-fit number.
+
+---
+
+## Limitations and what a v2 would address
+
+Two findings from Milestone 10 are disclosed rather than smoothed over,
+and they point at the same next step.
+
+**1. The evaluation does not exercise uninformative reputation.** All
+three target queries use a decisive seeded reputation spread (+10 vs −50),
+so the reputation term alone separates every relevant document from its
+poison and the sweep plateau reaches `alpha = 0.0`. No query in the set
+has its ground-truth answer among the 47 neutral (reputation 0, tied)
+filler chunks, which is the regime where the `alpha * similarity` term
+must carry the ranking under the hybrid formula. A v2 evaluation should
+add at least one query whose relevant document is a neutral-reputation
+chunk, to measure similarity-carried ranking with the hybrid score in
+effect — Milestone 6's synthetic tests covered this; the real-data set
+traded it for a clean poisoning-resistance proof.
+
+**2. Trust-weighting fixes retrieval rank, not the generation context.**
+On H. pylori, DeRAG promotes the real abstract to rank 1 but the −50
+poison chunk still sits at slot #2 of the 3-item context window, and the
+generated answer degrades only to a both-sides hedge rather than a clean
+correction. A v2 would carry the trust signal past retrieval into
+generation — e.g. drop or down-weight a heavily-demoted chunk from the
+prompt context rather than only from the top rank, and/or surface each
+source's trust score into the prompt so the model can weight the
+conflict itself. This also interacts with the single-chunk truncation
+(Deep Learning §"Why 500-character chunking"): a results-preserving
+excerpt would give the promoted legit chunk the finding, not just the
+question.

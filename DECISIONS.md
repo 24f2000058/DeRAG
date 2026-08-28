@@ -827,6 +827,22 @@ later milestone next touches the relevant file.
   sit in the candidate window at +10 against the poison at −50.
   Conclusion: the ranking constants did NOT need retuning against real
   data — confirmed by measurement, not assertion.
+- **Evaluation scope limitation (disclosed).** Because all three target
+  queries use a decisive seeded reputation spread (+10 legit vs −50
+  poison), the reputation term alone separates every relevant document
+  from its poison and the sweep plateau reaches alpha = 0.0. The
+  evaluation therefore does NOT exercise the *uninformative-reputation*
+  regime — the 47 filler chunks all sit at reputation 0 (tied), and no
+  query in the set has its ground truth among them, so the
+  `alpha * similarity` term is never made to carry a ranking on its own.
+  The hybrid formula degrades to similarity-ranked retrieval when
+  reputation ties/goes neutral (and Milestone 6's synthetic validation
+  covered that path), but the Milestone 10 real-data set traded that
+  coverage for a clean poisoning-resistance proof. A v2 evaluation
+  should add a query whose relevant document is a neutral-reputation
+  chunk. This is a limitation of the evaluation set, not the ranking
+  design. Pairs with the H. pylori generation nuance below as the two
+  "what v2 addresses" items (see `VIVA.md` closing section).
 - **H. pylori generation-level nuance (honest, not omitted).** The
   retrieval flip is clean (DeRAG rank-1 = the real abstract), but the
   *generated* DeRAG answer for H. pylori only degrades from Standard
