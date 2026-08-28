@@ -14,8 +14,81 @@ no LLM fine-tuning.
 
 ## Services to start before running anything
 
-_(To be filled in during Milestone 10, once Hardhat, IPFS, Ollama, and
-Streamlit are all wired together.)_
+### Startup order
+
+1. **Hardhat node** — `cd contracts && npx hardhat node` (long-running, port 8545).
+   Prints 20 funded accounts; **Account #0** is the reputation oracle.
+2. **Deploy contracts** — `cd contracts && npx hardhat run scripts/deploy.ts --network localhost`
+   (one-shot; deploys and exits; writes `contracts/deployments/localhost.json`).
+3. **IPFS daemon** — `ipfs daemon` (long-running; API on 5001, gateway on 8080).
+4. **Ollama** — `ollama serve` (long-running, port 11434). Only needed for
+   answer generation: the Streamlit UI, `scripts/demo_generate.py`, and
+   `scripts/eval_hallucination.py`. The CLI rerank demo and the automated
+   proofs do **not** need it.
+5. **Seed the demo corpus** (see "Models / tuning to pre-fetch" for the
+   `.env` export this depends on):
+   ```bash
+   set -a; . ./.env; set +a
+   uv run python scripts/seed_reputation.py
+   uv run python scripts/check_candidate_window.py    # expect: [preflight] PASS
+   ```
+6. **Streamlit UI** — `uv run streamlit run app/main.py` (port 8501).
+
+Hardhat's chain state is in-memory only: if you restart the node, re-run
+steps 2 and 5 before any retrieval.
+
+### Ports
+
+| Port  | Service          | Config var          | Notes |
+|-------|------------------|---------------------|-------|
+| 8545  | Hardhat JSON-RPC | `WEB3_PROVIDER_URI` | local chain |
+| 5001  | IPFS (Kubo) API  | `IPFS_API_URL`      | chunk bodies |
+| 8080  | IPFS gateway     | —                   | hash-verification fetches |
+| 11434 | Ollama           | `OLLAMA_HOST`       | answer generation only |
+| 8501  | Streamlit UI     | —                   | `app/main.py` |
+
+### Models / tuning to pre-fetch before running anything
+
+**1. Pull the generation model** (~7.6 GB):
+
+```bash
+ollama pull gemma4:12b
+```
+
+**2. Create `.env` and export it into every shell that runs a script.**
+The `scripts/` read `os.environ` directly and do **not** load `.env`
+themselves:
+
+```bash
+cp .env.example .env
+# set PRIVATE_KEY to the Hardhat Account #0 key; with the default mnemonic:
+#   0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+set -a; . ./.env; set +a    # <-- required before seed_reputation.py, evaluate.py, etc.
+```
+
+**3. Apply the Ollama systemd tuning — REQUIRED for `gemma4:12b` to be
+viable.** Without it the model falls back to CPU or partial GPU offload:
+a **silent performance regression, not a crash**, and easy to miss during
+setup. `sudo systemctl edit ollama.service`, which creates the drop-in
+`/etc/systemd/system/ollama.service.d/override.conf`. Paste it **verbatim,
+including the `[Service]` header** — omitting the header makes systemd
+ignore every line ("Assignment outside of section" in `journalctl -u
+ollama`) while the service still reports `active`:
+
+```ini
+[Service]
+Environment="OLLAMA_NOPRUNE=1"
+Environment="OLLAMA_KV_CACHE_TYPE=q8_0"
+Environment="OLLAMA_FLASH_ATTENTION=1"
+Environment="OLLAMA_KEEP_ALIVE=-1"
+```
+
+Then reload and restart, and verify it took:
+
+```bash
+sudo systemctl daemon-reload && sudo systemctl restart ollama
+systemctl show ollama -p Environment    # must list all four OLLAMA_* vars
+```
 
 ## Status
 
@@ -159,3 +232,13 @@ thesis is pinned by `tests/test_demo_corpus_regression.py` (`-m slow`):
 against live Hardhat + IPFS + Chroma, Standard RAG's top-1 for the
 red-meat/TMAO query is the fabricated chunk while DeRAG's top-1 is the
 real abstract. See `DEMO.md` for the scripted walkthrough.
+
+Milestone 10: quantitative evaluation and final docs. `scripts/evaluate.py`
+computes MRR@10 and Precision@K for Standard RAG vs trust-weighted rerank
+across the 3 target queries plus an alpha sweep (`eval/results.md`);
+`scripts/eval_hallucination.py` captures Standard-RAG-vs-DeRAG generated
+answers (`eval/hallucination_qualitative.md`). The result is
+two-positive/one-honest-negative: TMAO and H. pylori show trust-weighting
+overriding a similarity-based fooling attempt, antibiotics is a
+no-regression contrast where DeRAG correctly does not over-trigger.
+`VIVA.md` has the decision-grounded viva Q&A. This is the final milestone.
