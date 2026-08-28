@@ -41,9 +41,9 @@ No other DEMO.md numbers change.
   both TMAO and H. pylori). **DEMO.md ranking/similarity blocks: no change
   needed** beyond the antibiotics-precision normalization above.
 - **Recheck at Task 9:** confirm DEMO.md still says `7 passed, 1 xfailed`
-  and the TMAO/H. pylori rerank score figures (0.6257 / 0.7484 etc.) — these
-  were NOT independently recomputed this window (evaluate.py reports ranks,
-  not hybrid scores). Low risk (deterministic, regression green), but a
+  and the TMAO/H. pylori rerank score figures (0.6257 / 0.7484 etc.) — the DeRAG hybrid-score figures (0.6257 / 0.7484) AND the raw similarity
+  decimals (0.7789 / 0.5806 / 0.8020 / 0.7558) were re-measured by the
+  calm-box demo_rerank spot-run below and all match DEMO.md exactly. Low risk (deterministic, regression green), but a
   Task 9 `demo_rerank` spot-run on a calm box would fully close it.
 
 ## H. pylori qualitative generation nuance (honest, reportable)
@@ -51,9 +51,14 @@ No other DEMO.md numbers change.
 `eval/hallucination_qualitative.md` (committed, clean run, all 6 retrieval-
 context sanity checks pass):
 
-- **TMAO** — clean flip: Standard RAG answer leads with the fabricated
-  "cardiovascular-neutral" claim; DeRAG answer is an unhedged "Yes, ...
-  produces TMAO and accelerates atherosclerosis [1]".
+- **TMAO** — the generation-level win is on the DeRAG side. Standard RAG's
+  answer is itself a both-sides HEDGE ("The provided sources contain
+  conflicting information...") that actually surfaces the TRUE claim first
+  ([2] = the real abstract) and the fabricated "cardiovascular-neutral"
+  claim second — it does not confidently hallucinate. DeRAG's answer is an
+  unhedged, correct "Yes, ... produces TMAO and accelerates atherosclerosis
+  [1]". So the contrast to report for TMAO is muddled-hedge (Standard RAG)
+  vs clean-correct (DeRAG), NOT confident-hallucination vs correction.
 - **H. pylori** — retrieval flips cleanly (DeRAG #1 = legit), but the
   *generated* DeRAG answer HEDGES ("sources contain conflicting
   information ... one source describes a study designed to investigate the
