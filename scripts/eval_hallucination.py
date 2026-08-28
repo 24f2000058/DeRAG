@@ -54,10 +54,10 @@ def retrieve(query: str, mode: str) -> list[dict]:
 
 
 def run_case(query: str, mode: str) -> dict:
-    from generation.llm_client import build_prompt, generate_blocking
+    from generation.llm_client import build_prompt, generate_streaming
 
     docs = retrieve(query, mode)
-    answer = generate_blocking(build_prompt(query, docs))
+    answer = "".join(generate_streaming(build_prompt(query, docs)))
     return {
         "mode": mode,
         "answer": answer.strip(),

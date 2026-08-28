@@ -54,3 +54,16 @@ def test_render_md_side_by_side_and_commentary():
 def test_commentary_constants_say_the_right_things():
     assert "changes" in CHANGE_COMMENTARY
     assert "both modes" in STABLE_COMMENTARY and "does not distort" in STABLE_COMMENTARY
+
+
+def test_run_case_joins_streamed_chunks_and_strips(monkeypatch):
+    import scripts.eval_hallucination as eh
+    from generation import llm_client
+
+    monkeypatch.setattr(eh, "retrieve", lambda q, m: [
+        {"metadata": {"source_file": "scifact_1_a.txt"}, "chroma_id": "c1", "text": "t"},
+    ])
+    monkeypatch.setattr(llm_client, "generate_streaming", lambda prompt: iter(["  Hello", ", ", "world  "]))
+
+    out = eh.run_case("Q", "standard")
+    assert out == {"mode": "standard", "answer": "Hello, world", "sources": ["scifact_1_a.txt"]}
