@@ -82,6 +82,22 @@ def test_hits_to_doc_ids_join():
     assert hits_to_doc_ids(hits, sdi) == [None, "14803797"]
 
 
+def test_hits_to_doc_ids_raises_on_unknown_source_file():
+    from scripts.evaluate import source_doc_id_by_filename
+    sdi = source_doc_id_by_filename(_MANIFEST_SLICE["chunks"])
+    import pytest
+    with pytest.raises(KeyError, match="not in manifest"):
+        hits_to_doc_ids([{"metadata": {"source_file": "not_a_real_file.txt"}}], sdi)
+
+
+def test_build_ground_truth_agrees_with_gather_cases_on_real_manifest():
+    from scripts.evaluate import build_ground_truth, gather_cases, load_manifest_chunks
+    chunks = load_manifest_chunks()
+    gt = build_ground_truth(chunks)
+    for case in gather_cases(chunks):
+        assert gt[case["query"]] == case["gt_doc_id"]
+
+
 def test_gather_cases_uses_real_committed_manifest():
     from scripts.evaluate import load_manifest_chunks
     cases = gather_cases(load_manifest_chunks())

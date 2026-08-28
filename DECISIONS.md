@@ -411,12 +411,12 @@ later milestone next touches the relevant file.
   `Environment=` lines into the `systemctl edit` buffer, which makes
   systemd silently ignore every line in the file ("Assignment outside of
   section" in `journalctl -u ollama`) while the service still reports
-  `active`. **TODO for Milestone 10's README**: copy this block verbatim
-  into the setup/quickstart instructions, including the `[Service]` header
-  and the daemon-reload/restart step, and note that a fresh machine
-  without this tuning applied will fall back to CPU inference or partial,
-  slow GPU offload rather than fail outright — so a missing override is a
-  silent perf regression, not a crash, and easy to miss during setup.
+  `active`. **Done in Milestone 10** — `README.md` ("Services to start before
+  running anything" → "Models / tuning to pre-fetch before running anything",
+  step 3) carries this block verbatim, including the `[Service]` header and the
+  `daemon-reload`/`restart`/verify steps, with the note that a fresh machine
+  without this tuning falls back to CPU or partial-GPU offload rather than
+  failing outright — a silent perf regression, not a crash.
 - **`gemma4:12b` requires `think: false`, which is a `/api/chat`-only
   parameter — this is why generation targets `/api/chat`, not
   `/api/generate`.** gemma4 is a thinking model: its real answer text

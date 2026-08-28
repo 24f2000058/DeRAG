@@ -21,10 +21,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from scripts.evaluate import EVAL_DIR, gather_cases, load_manifest_chunks
 
 CHANGE_COMMENTARY = (
-    "**The generated answer changes between modes.** Standard RAG's answer is "
-    "shaped by the fabricated chunk that won raw-similarity retrieval; DeRAG's "
-    "answer is shaped by the real abstract that the on-chain reputation signal "
-    "promoted to rank 1. Compare the two blockquotes above."
+    "**The generated answer changes between modes.** The two modes lead with "
+    "different top-ranked context -- Standard RAG with the fabricated chunk that "
+    "won raw similarity, DeRAG with the real abstract that the on-chain "
+    "reputation signal promoted to rank 1 -- and the answers differ accordingly. "
+    "See the per-case note below and compare the two blockquotes above."
 )
 
 STABLE_COMMENTARY = (
@@ -130,7 +131,7 @@ def render_md(cases: list[dict]) -> str:
             "",
         ]
         if case["label"] in _CASE_NUANCE:
-            parts += ["", _CASE_NUANCE[case["label"]]]
+            parts += [_CASE_NUANCE[case["label"]], ""]
     return "\n".join(parts).rstrip() + "\n"
 
 

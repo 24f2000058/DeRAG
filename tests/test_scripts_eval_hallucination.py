@@ -55,6 +55,7 @@ def test_render_md_side_by_side_and_commentary():
 def test_commentary_constants_say_the_right_things():
     assert "changes" in CHANGE_COMMENTARY
     assert "absent in the DeRAG column" not in CHANGE_COMMENTARY
+    assert "shaped by the fabricated chunk" not in CHANGE_COMMENTARY
     assert "both modes" in STABLE_COMMENTARY and "does not distort" in STABLE_COMMENTARY
 
 

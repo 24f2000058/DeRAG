@@ -78,7 +78,16 @@ def gather_cases(chunks: list[dict]) -> list[dict]:
 
 
 def hits_to_doc_ids(hits: list[dict], sdi_by_file: dict[str, str | None]) -> list[str | None]:
-    return [sdi_by_file.get(h["metadata"]["source_file"]) for h in hits]
+    ids = []
+    for h in hits:
+        source_file = h["metadata"]["source_file"]
+        if source_file not in sdi_by_file:
+            raise KeyError(
+                f"retrieved source_file {source_file!r} is not in manifest.json — "
+                "stale Chroma store or wrong --corpus-dir?"
+            )
+        ids.append(sdi_by_file[source_file])
+    return ids
 
 
 def reciprocal_rank(ranked: list[str | None], gt_id: str) -> float:
