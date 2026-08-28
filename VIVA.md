@@ -180,8 +180,8 @@ setting back and two orthogonal unit vectors return `distance = 1.0`
 Milestone 1's SHA-256 of the normalised chunk text, and storage always
 uses `upsert()`, so re-ingesting byte-identical content overwrites in
 place — though that idempotency is a coincidental consequence of upsert
-semantics, not a designed guarantee, which is why the blockchain seeding
-step has its own explicit dedup check. Standard RAG
+semantics, not a designed guarantee, which is why on-chain
+registration has its own explicit duplicate-hash check. Standard RAG
 (`retrieval/standard_rag.py`) is pure cosine top-k with no reranking — the
 baseline the whole thesis is measured against.
 

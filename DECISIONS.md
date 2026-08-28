@@ -708,7 +708,7 @@ later milestone next touches the relevant file.
     genuine second Standard-RAG-fooling case rather than a curiosity. The
     margin is thinner than TMAO's, so it is the more drift-exposed of the
     two — but it passes independently.
-  - Antibiotics — poison 0.709 vs legit 0.733 (**legit wins** by 0.024).
+  - Antibiotics — poison 0.7092 vs legit 0.7329 (**legit wins** by 0.0237).
     Direction matches spec §2b's full-abstract ordering only loosely
     (§2b had poison 0.7104 > legit 0.7074); against the truncated legit
     excerpt the natural query keeps the real abstract on top. The one
@@ -788,3 +788,71 @@ later milestone next touches the relevant file.
   Milestone 6 script) lacks the `sys.path` bootstrap the other scripts
   have, so it must be run as `python -m scripts.demo_rerank`; left as-is
   (out of Milestone 9 scope), and `DEMO.md` uses the module form.
+
+## Milestone 10 — Quantitative Evaluation, Final Docs & Viva Prep (2026-08-28)
+
+- **`source_doc_id` added to `manifest.json`** (one per chunk):
+  `str(doc_id)` of the originating SciFact abstract for `scifact_*`
+  chunks; `null` for the 3 `FABRICATED_MISINFO_*` chunks — the poison
+  text did not come from any SciFact document, and the "which real
+  finding does this attack" link is already carried by
+  `ground_truth_chunk_id`. Rationale: the evaluation harness resolves a
+  retrieved chunk to its SciFact document without string-parsing
+  `chunk_id`. `build_manifest()` emits the field; regenerating the
+  committed `manifest.json` is byte-identical modulo the new key.
+- **Evaluation methodology.** `scripts/evaluate.py` computes MRR@10 +
+  P@1/P@3 for `standard_rag_answer_context` and `trust_weighted_rerank`
+  across the 3 target queries, with ground truth from `manifest.json`
+  (exactly one relevant SciFact document per query). It uses an
+  evaluation-only `k_return=10` override; the product default (3) is
+  untouched. `scripts/eval_hallucination.py` captures the generated
+  answers under both modes.
+- **Headline result (`eval/results.md`): two positives, one honest
+  negative.**
+  - TMAO: Standard RAG P@1 = 0.000, DeRAG P@1 = 1.000 (wide ~0.198
+    raw-similarity margin).
+  - H. pylori: Standard RAG P@1 = 0.000, DeRAG P@1 = 1.000 (thin ~0.046
+    margin — reported honestly as the mechanism's robustness envelope).
+  - antibiotics: P@1 = 1.000 in BOTH modes — a no-regression check; raw
+    similarity already ranks the legit chunk first and DeRAG correctly
+    does not over-trigger.
+  - MRR@10 — Standard RAG 0.667 vs DeRAG 1.000.
+- **Alpha sweep (`0.0 / 0.3 / 0.5 / 0.7 / 1.0` across all 3 queries):
+  DONE.** MRR@10 = 1.000 at alpha 0.0, 0.3, 0.5 and 0.7 — a wide
+  plateau, so the shipped alpha = 0.7 sits on a flat maximum, not a
+  knife-edge tune. alpha = 1.0 drops to MRR 0.667, exactly equal to
+  Standard RAG's MRR (alpha = 1.0 collapses the hybrid score to pure
+  similarity — a built-in sanity check, borne out). Even alpha = 0.0
+  (pure reputation) ranks all three legit targets first, because they
+  sit in the candidate window at +10 against the poison at −50.
+  Conclusion: the ranking constants did NOT need retuning against real
+  data — confirmed by measurement, not assertion.
+- **H. pylori generation-level nuance (honest, not omitted).** The
+  retrieval flip is clean (DeRAG rank-1 = the real abstract), but the
+  *generated* DeRAG answer for H. pylori only degrades from Standard
+  RAG's confident false "No" to an unresolved both-sides hedge — it does
+  not reach a clean "Yes". Two on-record reasons: (1) the real H. pylori
+  excerpt is truncated to its objective/design sentence (no results —
+  the M9 leading-sentence truncation), so it carries the question but
+  not the finding; (2) after rerank the −50 poison chunk still occupies
+  context slot #2 of the 3-item window (trust-weighting fixes rank-1,
+  not membership). This is the generation-level face of H. pylori being
+  the thinner-margin, more drift-exposed case; Standard RAG's H. pylori
+  answer remains an unambiguous hallucination. See
+  `eval/hallucination_qualitative.md`.
+- **Antibiotics similarity-pair discrepancy (DEMO.md vs DECISIONS.md):
+  resolved.** Live recompute — legit 0.7329 / poison 0.7092 / margin
+  0.0237. The prior mismatch was a harmless per-document display-precision
+  convention (DEMO.md 4 dp, the DECISIONS.md M9 bullet 3 dp), NOT a stale
+  remnant of a superseded run: DEMO.md's figures reproduce exactly
+  against the current truncated corpus. Both documents now quote the
+  pair at 4 dp.
+- **Operational reality found this window (for a future reader).** The
+  demo box is VRAM-bound even with the Ollama systemd tuning applied
+  (`ollama ps` → 23%/77% CPU/GPU; the 7.9 GB model + KV cache exceeds
+  8 GB); `generate_blocking`'s 10 s timeout cannot serve this model, so
+  `scripts/eval_hallucination.py` uses `generate_streaming`; and
+  retrieval needs only Chroma + the Hardhat chain (IPFS is required only
+  by `seed_reputation.py`'s ingest).
+- **This is the last milestone in the DeRAG roadmap.** No further
+  milestones are planned; the project is feature-complete and evaluated.
