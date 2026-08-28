@@ -90,3 +90,21 @@ context sanity checks pass):
   `generate_streaming` (`timeout=(10, None)`), commit db12bf6.
 - Retrieval (`trust_weighted_rerank`) needs Chroma + the Hardhat chain
   only — NOT IPFS. IPFS is only needed by `seed_reputation.py`'s ingest.
+
+## UPDATE — DEMO.md demo_rerank blocks fully verified (calm-box spot-run)
+
+`uv run python -m scripts.demo_rerank` re-run for both DEMO.md queries on a
+stable box. Output matches DEMO.md's captured "Expected output" blocks
+EXACTLY, hybrid scores included:
+
+- TMAO Standard RAG: poison 0.7789 / legit 0.5806 / bile-acid 0.3803.
+  TMAO Trust-Weighted: legit #1 (sim 0.5806, score 0.6257) / poison #2
+  (0.7789, 0.5473) / bile-acid #3 (0.3803, 0.4162).
+- H. pylori Standard RAG: poison 0.8020 / legit 0.7558 / antibiotics 0.3965.
+  H. pylori Trust-Weighted: legit #1 (sim 0.7558, score 0.7484) / poison #2
+  (0.8020, 0.5634) / antibiotics #3 (0.3965, 0.4969).
+
+`7 passed, 1 xfailed` confirmed twice this window. **DEMO.md ranking,
+similarity, and hybrid-score blocks need NO change.** The ONLY DEMO.md edit
+for Task 9 is the antibiotics similarity-pair precision normalization
+(0.7329 / 0.7092 / 0.0237, matching DECISIONS.md).
