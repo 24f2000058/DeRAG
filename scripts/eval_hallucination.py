@@ -21,11 +21,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from scripts.evaluate import EVAL_DIR, gather_cases, load_manifest_chunks
 
 CHANGE_COMMENTARY = (
-    "**The generated answer changes between modes.** Standard RAG answers from "
-    "the fabricated, inverted claim because the poison won retrieval; DeRAG "
-    "answers from the real abstract because the on-chain reputation signal "
-    "flipped the top result. The hallucination is visible in the Standard RAG "
-    "column and absent in the DeRAG column."
+    "**The generated answer changes between modes.** Standard RAG's answer is "
+    "shaped by the fabricated chunk that won raw-similarity retrieval; DeRAG's "
+    "answer is shaped by the real abstract that the on-chain reputation signal "
+    "promoted to rank 1. Compare the two blockquotes above."
 )
 
 STABLE_COMMENTARY = (
@@ -39,6 +38,33 @@ _COMMENTARY_BY_LABEL = {
     "TMAO / red meat": CHANGE_COMMENTARY,
     "H. pylori / gastric cancer": CHANGE_COMMENTARY,
     "antibiotics / C. difficile": STABLE_COMMENTARY,
+}
+
+# Optional per-case caveat, printed after the templated commentary. Keyed by
+# label. Only cases whose generation-level behaviour needs qualification appear
+# here; a case absent from this map has no caveat.
+_CASE_NUANCE = {
+    "H. pylori / gastric cancer": (
+        "_Caveat — read the DeRAG answer above carefully._ Retrieval flips "
+        "cleanly (DeRAG's rank-1 context is the real abstract), but the "
+        "generated DeRAG answer does not reach a clean affirmative the way "
+        "TMAO's does: it tends to hedge, presenting the fabricated \"protective\" "
+        "claim as one side. Two compounding, on-record reasons: (1) the real "
+        "H. pylori chunk is truncated to its objective/design sentence with no "
+        "results (the M9 leading-sentence truncation), so it carries the "
+        "question but not the finding; (2) after rerank the -50 poison chunk "
+        "still occupies context slot #2 of the 3-item window -- trust-weighting "
+        "fixes rank-1, not membership. This is the generation-level face of "
+        "H. pylori being the thinner-margin, more drift-exposed case; Standard "
+        "RAG's H. pylori answer is still an unambiguous, confident hallucination."
+    ),
+    "TMAO / red meat": (
+        "_Note._ Standard RAG's TMAO answer is itself a both-sides hedge (it "
+        "actually surfaces the true finding first); DeRAG's is an unhedged, "
+        "correct affirmative. The generation-level contrast here is "
+        "muddled-hedge vs clean-correct, not confident-hallucination vs "
+        "correction."
+    ),
 }
 
 
@@ -103,6 +129,8 @@ def render_md(cases: list[dict]) -> str:
             _COMMENTARY_BY_LABEL[case["label"]],
             "",
         ]
+        if case["label"] in _CASE_NUANCE:
+            parts += ["", _CASE_NUANCE[case["label"]]]
     return "\n".join(parts).rstrip() + "\n"
 
 

@@ -1,6 +1,7 @@
 from scripts.eval_hallucination import (
     CHANGE_COMMENTARY,
     STABLE_COMMENTARY,
+    _CASE_NUANCE,
     render_md,
 )
 
@@ -53,7 +54,17 @@ def test_render_md_side_by_side_and_commentary():
 
 def test_commentary_constants_say_the_right_things():
     assert "changes" in CHANGE_COMMENTARY
+    assert "absent in the DeRAG column" not in CHANGE_COMMENTARY
     assert "both modes" in STABLE_COMMENTARY and "does not distort" in STABLE_COMMENTARY
+
+
+def test_render_md_emits_hpylori_caveat():
+    md = render_md(_CASES)
+    assert md.count("Retrieval flips") == 1
+    assert md.count("slot #2") == 1
+    assert md.count("drift-exposed") == 1
+    assert md.count("muddled-hedge vs clean-correct") == 1
+    assert "antibiotics / C. difficile" not in _CASE_NUANCE
 
 
 def test_run_case_joins_streamed_chunks_and_strips(monkeypatch):
