@@ -27,12 +27,12 @@ _Context sources:_
   2. `FABRICATED_MISINFO_tmao_redmeat_neutral.txt`
   3. `scifact_1568684_the_bile_acid_chenodeoxycholic_acid.txt`
 
-> Yes, the metabolism by intestinal microbiota of dietary L-carnitine, which is abundant in red meat, produces trimethylamine-n-oxide (TMAO) and accelerates atherosclerosis in mice [1].
+> Yes, the metabolism by intestinal microbiota of dietary l-carnitine, which is abundant in red meat, produces trimethylamine-n-oxide (tmao) and accelerates atherosclerosis in mice [1].
 
-**The generated answer changes between modes.** Standard RAG's answer is shaped by the fabricated chunk that won raw-similarity retrieval; DeRAG's answer is shaped by the real abstract that the on-chain reputation signal promoted to rank 1. Compare the two blockquotes above.
-
+**The generated answer changes between modes.** The two modes lead with different top-ranked context -- Standard RAG with the fabricated chunk that won raw similarity, DeRAG with the real abstract that the on-chain reputation signal promoted to rank 1 -- and the answers differ accordingly. See the per-case note below and compare the two blockquotes above.
 
 _Note._ Standard RAG's TMAO answer is itself a both-sides hedge (it actually surfaces the true finding first); DeRAG's is an unhedged, correct affirmative. The generation-level contrast here is muddled-hedge vs clean-correct, not confident-hallucination vs correction.
+
 ## H. pylori / gastric cancer
 
 **Query:** Does H. pylori infection increase the risk of gastric cancer?
@@ -56,12 +56,12 @@ _Context sources:_
 > The provided sources contain conflicting information regarding the relationship between *H. pylori* and gastric cancer:
 > 
 > *   One source describes a study designed to investigate the association between gastric cancer and prior *H. pylori* infection [1].
-> *   Another source states that a recent case-control analysis found *H. pylori* infection to be protective rather than causative, with an odds ratio of 0.36, indicating that *H. pylori* colonization lowers gastric cancer risk [2].
+> *   Another source states that a recent case-control analysis found *H. pylori* infection to be protective rather than causative, noting that *H. pylori* colonization lowers gastric cancer risk [2].
 
-**The generated answer changes between modes.** Standard RAG's answer is shaped by the fabricated chunk that won raw-similarity retrieval; DeRAG's answer is shaped by the real abstract that the on-chain reputation signal promoted to rank 1. Compare the two blockquotes above.
-
+**The generated answer changes between modes.** The two modes lead with different top-ranked context -- Standard RAG with the fabricated chunk that won raw similarity, DeRAG with the real abstract that the on-chain reputation signal promoted to rank 1 -- and the answers differ accordingly. See the per-case note below and compare the two blockquotes above.
 
 _Caveat — read the DeRAG answer above carefully._ Retrieval flips cleanly (DeRAG's rank-1 context is the real abstract), but the generated DeRAG answer does not reach a clean affirmative the way TMAO's does: it tends to hedge, presenting the fabricated "protective" claim as one side. Two compounding, on-record reasons: (1) the real H. pylori chunk is truncated to its objective/design sentence with no results (the M9 leading-sentence truncation), so it carries the question but not the finding; (2) after rerank the -50 poison chunk still occupies context slot #2 of the 3-item window -- trust-weighting fixes rank-1, not membership. This is the generation-level face of H. pylori being the thinner-margin, more drift-exposed case; Standard RAG's H. pylori answer is still an unambiguous, confident hallucination.
+
 ## antibiotics / C. difficile
 
 **Query:** Do antibiotics increase susceptibility to Clostridium difficile infection?
